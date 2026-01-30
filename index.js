@@ -239,7 +239,7 @@ Each hook should be standalone and scroll-stopping.
           Authorization: `Bearer ${AI_API_KEY}`
         },
         body: JSON.stringify({
-          model: 'anthropic/claude-sonnet-4.5',
+          model: model: 'mistralai/mistral-7b-instruct',
           messages: [{ role: 'system', content: prompt }],
           max_tokens: 160
         })
@@ -266,3 +266,4 @@ Each hook should be standalone and scroll-stopping.
 });
 
 console.log('✅ AI Discipline & Skills Bot Running...');
+
