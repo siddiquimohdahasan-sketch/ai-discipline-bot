@@ -267,3 +267,4 @@ Each hook should be standalone and scroll-stopping.
 
 console.log('✅ AI Discipline & Skills Bot Running...');
 
+
