@@ -267,4 +267,16 @@ Each hook should be standalone and scroll-stopping.
 
 console.log('✅ AI Discipline & Skills Bot Running...');
 
+// --- Render keep-alive server (FREE plan fix) ---
+const http = require('http');
+
+const PORT = process.env.PORT || 3000;
+
+http.createServer((req, res) => {
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.end('Bot is running');
+}).listen(PORT, () => {
+  console.log(`🌐 Keep-alive server running on port ${PORT}`);
+});
+
 
