@@ -1,0 +1,17 @@
+{
+  "name": "ai-discipline-bot",
+  "version": "1.0.0",
+  "description": "AI-powered Telegram bot for discipline and skill-focused content.",
+  "main": "index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "node-telegram-bot-api": "^0.67.0",
+    "node-fetch": "^3.3.2"
+  }
+}
