@@ -8,8 +8,8 @@
     "start": "node index.js"
   },
   "engines": {
-    "node": ">=18"
-  },
+  "node": ">=18 <21"
+}
   "dependencies": {
     "node-telegram-bot-api": "^0.67.0",
     "node-fetch": "^3.3.2"
