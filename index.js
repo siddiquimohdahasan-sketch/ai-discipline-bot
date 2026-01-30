@@ -1,3 +1,15 @@
+// --- Render keep-alive server (MUST be at top) ---
+const http = require('http');
+
+const PORT = process.env.PORT || 3000;
+
+http.createServer((req, res) => {
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.end('OK');
+}).listen(PORT, () => {
+  console.log(`🌐 HTTP server running on port ${PORT}`);
+});
+
 const TelegramBot = require('node-telegram-bot-api');
 const fetch = require('node-fetch');
 
@@ -267,16 +279,6 @@ Each hook should be standalone and scroll-stopping.
 
 console.log('✅ AI Discipline & Skills Bot Running...');
 
-// --- Render keep-alive server (FREE plan fix) ---
-const http = require('http');
 
-const PORT = process.env.PORT || 3000;
-
-http.createServer((req, res) => {
-  res.writeHead(200, { 'Content-Type': 'text/plain' });
-  res.end('Bot is running');
-}).listen(PORT, () => {
-  console.log(`🌐 Keep-alive server running on port ${PORT}`);
-});
 
 
