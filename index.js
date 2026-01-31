@@ -112,7 +112,7 @@ bot.on('callback_query', async q => {
   bot.answerCallbackQuery(q.id);
   userState[id] = userState[id] || {};
 
-  if (data === 'limit') {
+ if (data === 'limit') {
   return bot.sendMessage(
     id,
     `ℹ️ *Plan info*
@@ -157,6 +157,8 @@ Upgrade to continue generating content.`,
       { parse_mode: 'Markdown' }
     );
   }
+
+  // 👇 yahan se aage tumhara normal generate flow chalega
 }
 
     const buttons = platformsAllowed(id).map(p => [
@@ -291,6 +293,7 @@ Each hook should be standalone and scroll-stopping.
 });
 
 console.log('✅ AI Discipline & Skills Bot Running...');
+
 
 
 
