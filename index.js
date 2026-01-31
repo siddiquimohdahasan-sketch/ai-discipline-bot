@@ -113,38 +113,51 @@ bot.on('callback_query', async q => {
   userState[id] = userState[id] || {};
 
   if (data === 'limit') {
-    return bot.sendMessage(id, `Remaining today: *${userCredits[id]}*`, {
-      parse_mode: 'Markdown'
-    });
-  }
+  return bot.sendMessage(
+    id,
+    `ℹ️ *Plan info*
 
-  if (data === 'paid') {
-    return bot.sendMessage(
-      id,
-      `💼 *Paid Plans*
+You’re currently on the free plan.
+
+Upgrade to unlock:
+• Higher daily limits
+• Multiple platforms
+• Premium writing`,
+    { parse_mode: 'Markdown' }
+  );
+}
+
+if (data === 'paid') {
+  return bot.sendMessage(
+    id,
+    `💼 *Paid Plans*
 
 ₹299 / month  
 • 20 posts/day  
-• Premium writing  
+• Premium writing tone  
 
 ₹999 Lifetime  
-• Unlimited  
+• Unlimited posts  
 • All platforms
 
 Reply *PAID* to upgrade.`,
+    { parse_mode: 'Markdown' }
+  );
+}
+
+if (data === 'generate') {
+  if (userCredits[id] <= 0 && !isAdmin(id)) {
+    return bot.sendMessage(
+      id,
+      `🚫 *Daily limit reached*
+
+You’ve used all your free posts for today.
+
+Upgrade to continue generating content.`,
       { parse_mode: 'Markdown' }
     );
   }
-
-  if (data === 'generate') {
-    if (userCredits[id] <= 0 && !isAdmin(id)) {
-      return bot.sendMessage(
-        id,
-        `Free limit finished 🙂
-Reply *PAID* to upgrade.`,
-        { parse_mode: 'Markdown' }
-      );
-    }
+}
 
     const buttons = platformsAllowed(id).map(p => [
       { text: p.toUpperCase(), callback_data: `platform_${p}` }
@@ -278,6 +291,7 @@ Each hook should be standalone and scroll-stopping.
 });
 
 console.log('✅ AI Discipline & Skills Bot Running...');
+
 
 
 
