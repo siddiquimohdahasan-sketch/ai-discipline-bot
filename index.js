@@ -146,6 +146,7 @@ Reply *PAID* to upgrade.`,
 }
 
 if (data === 'generate') {
+
   if (userCredits[id] <= 0 && !isAdmin(id)) {
     return bot.sendMessage(
       id,
@@ -158,17 +159,14 @@ Upgrade to continue generating content.`,
     );
   }
 
-  // 👇 yahan se aage tumhara normal generate flow chalega
+  const buttons = platformsAllowed(id).map(p => [
+    { text: p.toUpperCase(), callback_data: `platform_${p}` }
+  ]);
+
+  return bot.sendMessage(id, 'Choose platform:', {
+    reply_markup: { inline_keyboard: buttons }
+  });
 }
-
-    const buttons = platformsAllowed(id).map(p => [
-      { text: p.toUpperCase(), callback_data: `platform_${p}` }
-    ]);
-
-    return bot.sendMessage(id, 'Choose platform:', {
-      reply_markup: { inline_keyboard: buttons }
-    });
-  }
 
   if (data.startsWith('platform_')) {
     userState[id].platform = data.replace('platform_', '');
@@ -293,6 +291,7 @@ Each hook should be standalone and scroll-stopping.
 });
 
 console.log('✅ AI Discipline & Skills Bot Running...');
+
 
 
 
