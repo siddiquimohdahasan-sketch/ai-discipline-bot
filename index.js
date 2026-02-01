@@ -297,6 +297,57 @@ Each hook should be standalone and scroll-stopping.
 
 console.log('✅ AI Discipline & Skills Bot Running...');
 
+// ===== PAYMENT PROOF FLOW =====
+
+// user sends PAID
+bot.onText(/PAID/i, msg => {
+  const id = msg.chat.id;
+
+  userState[id] = { awaitingPaymentProof: true };
+
+  bot.sendMessage(
+    id,
+    `💳 Please send your payment screenshot or transaction ID.
+
+After verification, your paid plan will be activated.`
+  );
+});
+
+
+// receive screenshot
+bot.on('message', msg => {
+  const id = msg.chat.id;
+
+  if (userState[id]?.awaitingPaymentProof && msg.photo) {
+
+    // notify admin
+    bot.sendMessage(
+      ADMIN_ID,
+      `💰 Payment proof received from user: ${id}`
+    );
+
+    userState[id].awaitingPaymentProof = false;
+
+    bot.sendMessage(
+      id,
+      `⏳ Proof received. Activation in progress.`
+    );
+  }
+});
+
+
+// admin approve command
+bot.onText(/\/approve (\d+)/, (msg, match) => {
+  if (!isAdmin(msg.chat.id)) return;
+
+  const uid = Number(match[1]);
+
+  paidUsers[uid] = { plan: 'monthly' };
+
+  bot.sendMessage(uid, `✅ Your paid plan is now active.`);
+  bot.sendMessage(msg.chat.id, `User ${uid} approved.`);
+});
+
 
 
 
