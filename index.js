@@ -235,7 +235,7 @@ Guidelines:
 Platform: ${platform}
 Language: ${lang === 'indian' ? 'Indian English' : 'Global English'}
 Output format (STRICT):
-• Write exactly 3 lines.
+• Write exactly 2-4 lines.
 • Each line must be one short sentence.
 • No numbering.
 • No bullet points.
@@ -354,6 +354,7 @@ bot.onText(/\/approve (\d+)/, (msg, match) => {
   bot.sendMessage(uid, `✅ Your paid plan is now active.`);
   bot.sendMessage(msg.chat.id, `User ${uid} approved.`);
 });
+
 
 
 
