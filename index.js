@@ -12,6 +12,21 @@ http.createServer((req, res) => {
 
 const TelegramBot = require('node-telegram-bot-api');
 const fetch = require('node-fetch');
+const fs = require('fs');
+const DB_FILE = './db.json';
+
+// load database
+function loadDB() {
+  if (!fs.existsSync(DB_FILE)) {
+    fs.writeFileSync(DB_FILE, JSON.stringify({ users: {} }, null, 2));
+  }
+  return JSON.parse(fs.readFileSync(DB_FILE));
+}
+
+// save database
+function saveDB(db) {
+  fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
+}
 
 /* =======================
    🔑 CONFIGURATION
@@ -51,6 +66,32 @@ const dailyLimit = id => {
   if (paidUsers[id]) return paidUsers[id].plan === 'lifetime' ? 9999 : 20;
   return 3;
 };
+function getToday() {
+  return new Date().toISOString().split('T')[0];
+}
+
+function getUserCredits(id) {
+  const db = loadDB();
+  const today = getToday();
+
+  if (!db.users[id] || db.users[id].date !== today) {
+    db.users[id] = {
+      credits: dailyLimit(id),
+      date: today
+    };
+    saveDB(db);
+  }
+
+  return db.users[id].credits;
+}
+
+function useCredit(id) {
+  const db = loadDB();
+  if (db.users[id]) {
+    db.users[id].credits -= 1;
+    saveDB(db);
+  }
+}
 
 const platformsAllowed = id => {
   if (isAdmin(id)) return ['telegram', 'whatsapp', 'instagram', 'twitter'];
@@ -148,27 +189,29 @@ Reply *PAID* to upgrade.`,
   }
 
   // ---------- GENERATE ----------
-  if (data === 'generate') {
+if (data === 'generate') {
 
-    if (userCredits[id] <= 0 && !isAdmin(id)) {
-      return bot.sendMessage(
-        id,
-        `🚫 *Daily limit reached*
+  const creditsLeft = isAdmin(id) ? 9999 : getUserCredits(id);
 
-You’ve used all your free posts for today.
-Upgrade to continue.`,
-        { parse_mode: 'Markdown' }
-      );
-    }
+  if (creditsLeft <= 0 && !isAdmin(id)) {
+    return bot.sendMessage(
+      id,
+      `🚫 *Daily limit reached*
 
-    const buttons = platformsAllowed(id).map(p => [
-      { text: p.toUpperCase(), callback_data: `platform_${p}` }
-    ]);
-
-    return bot.sendMessage(id, 'Choose platform:', {
-      reply_markup: { inline_keyboard: buttons }
-    });
+Free users can generate only 3 posts per day.
+Reply *PAID* to upgrade.`,
+      { parse_mode: 'Markdown' }
+    );
   }
+
+  const buttons = platformsAllowed(id).map(p => [
+    { text: p.toUpperCase(), callback_data: `platform_${p}` }
+  ]);
+
+  return bot.sendMessage(id, 'Choose platform:', {
+    reply_markup: { inline_keyboard: buttons }
+  });
+}
 
   // ---------- PLATFORM ----------
   if (data.startsWith('platform_')) {
@@ -203,7 +246,7 @@ Upgrade to continue.`,
     const { platform, type } = userState[id];
     userState[id] = {};
 
-    if (!isAdmin(id)) userCredits[id]--;
+    if (!isAdmin(id)) useCredit(id);
 
     let prompt = `
 You are NOT an assistant.
@@ -354,3 +397,4 @@ bot.onText(/\/approve (\d+)/, (msg, match) => {
   bot.sendMessage(uid, `✅ Your paid plan is now active.`);
   bot.sendMessage(msg.chat.id, `User ${uid} approved.`);
 });
+
