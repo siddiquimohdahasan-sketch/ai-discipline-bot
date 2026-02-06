@@ -335,7 +335,7 @@ if (!isAdmin(id)) {
 
 return bot.sendMessage(
   id,
-  `✍️ *Content Ready*\n\n${text}${footer}`,
+  `✍️ *Content Ready*\n\n${text}`,
   { parse_mode: 'Markdown' }
 );
     } catch (e) {
@@ -397,5 +397,6 @@ bot.onText(/\/approve (\d+)/, (msg, match) => {
   bot.sendMessage(uid, `✅ Your paid plan is now active.`);
   bot.sendMessage(msg.chat.id, `User ${uid} approved.`);
 });
+
 
 
