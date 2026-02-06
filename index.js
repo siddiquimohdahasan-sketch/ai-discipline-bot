@@ -35,8 +35,7 @@ function today() {
 }
 
 // --- PLANS ---
-const paidUsers = {}; // manual for now
-
+const paidUsers = {}; // manual approve for now
 const isAdmin = id => id === ADMIN_ID;
 
 function dailyLimit(id) {
@@ -53,7 +52,6 @@ function getCredits(id) {
     db.users[id] = { credits: dailyLimit(id), date: t };
     saveDB(db);
   }
-
   return db.users[id].credits;
 }
 
@@ -65,26 +63,43 @@ function useCredit(id) {
   }
 }
 
-// --- BOT ---
+// --- BOT INIT ---
 const bot = new TelegramBot(BOT_TOKEN, { polling: true });
 const userState = {};
 
+// --- HELPERS ---
+const platformsAllowed = id => {
+  if (isAdmin(id)) return ['telegram', 'whatsapp', 'instagram', 'twitter'];
+  if (paidUsers[id]) return ['telegram', 'whatsapp', 'instagram', 'twitter'];
+  return ['telegram'];
+};
+
+const typesAllowed = id => {
+  if (isAdmin(id) || paidUsers[id]) return ['motivation', 'quote', 'hooks'];
+  return ['motivation', 'quote'];
+};
+
 // --- START ---
 bot.onText(/\/start/, msg => {
+  const id = msg.chat.id;
+
   bot.sendMessage(
-    msg.chat.id,
+    id,
     `👋 *AI Discipline & Skills Bot*
 
 🆓 Free: 3 posts/day  
 💰 Paid: Higher limits
 
-👇 Start`,
+👇 Start below`,
     {
       parse_mode: 'Markdown',
       reply_markup: {
         inline_keyboard: [
           [{ text: '✍️ Generate Content', callback_data: 'generate' }],
-          [{ text: '💰 Paid Plan', callback_data: 'paid' }]
+          [
+            { text: '📊 My Limit', callback_data: 'limit' },
+            { text: '💰 Paid Plan', callback_data: 'paid' }
+          ]
         ]
       }
     }
@@ -97,19 +112,36 @@ bot.on('callback_query', async q => {
   const data = q.data;
   bot.answerCallbackQuery(q.id);
 
+  // ---- LIMIT INFO ----
+  if (data === 'limit') {
+    const credits = isAdmin(id) ? 'Unlimited' : getCredits(id);
+    return bot.sendMessage(
+      id,
+      `📊 *Your Limit*
+
+Remaining today: *${credits}*`,
+      { parse_mode: 'Markdown' }
+    );
+  }
+
+  // ---- PAID ----
   if (data === 'paid') {
     return bot.sendMessage(
       id,
       `💼 *Paid Plans*
 
-₹299 / month — 20 posts/day  
-₹999 Lifetime — Unlimited
+₹299 / month  
+• 20 posts/day  
+
+₹999 Lifetime  
+• Unlimited posts  
 
 Reply *PAID* to upgrade.`,
       { parse_mode: 'Markdown' }
     );
   }
 
+  // ---- GENERATE ----
   if (data === 'generate') {
     const credits = isAdmin(id) ? 9999 : getCredits(id);
 
@@ -118,10 +150,38 @@ Reply *PAID* to upgrade.`,
         id,
         `🚫 *Daily limit reached*
 
-Free users get 3 posts/day.`,
+Free users get only 3 posts/day.`,
         { parse_mode: 'Markdown' }
       );
     }
+
+    userState[id] = {};
+
+    const buttons = platformsAllowed(id).map(p => [
+      { text: p.toUpperCase(), callback_data: `platform_${p}` }
+    ]);
+
+    return bot.sendMessage(id, 'Choose platform:', {
+      reply_markup: { inline_keyboard: buttons }
+    });
+  }
+
+  // ---- PLATFORM ----
+  if (data.startsWith('platform_')) {
+    userState[id].platform = data.replace('platform_', '');
+
+    const buttons = typesAllowed(id).map(t => [
+      { text: t.toUpperCase(), callback_data: `type_${t}` }
+    ]);
+
+    return bot.sendMessage(id, 'Choose content type:', {
+      reply_markup: { inline_keyboard: buttons }
+    });
+  }
+
+  // ---- TYPE ----
+  if (data.startsWith('type_')) {
+    userState[id].type = data.replace('type_', '');
 
     return bot.sendMessage(id, 'Choose language:', {
       reply_markup: {
@@ -133,22 +193,30 @@ Free users get 3 posts/day.`,
     });
   }
 
+  // ---- LANGUAGE → AI ----
   if (data.startsWith('lang_')) {
     const lang = data.replace('lang_', '');
+    const { platform, type } = userState[id];
+    userState[id] = {};
 
     if (!isAdmin(id)) useCredit(id);
 
-    const prompt = `
+    let prompt = `
 You are NOT an assistant.
-Output ONLY final content.
+Output ONLY final post-ready content.
 
 Topic: discipline, effort, consistency, skills.
-
 Write 2–4 short sharp lines.
-No numbering. No fluff.
 
+Platform: ${platform}
 Language: ${lang === 'indian' ? 'Indian English' : 'Global English'}
 `;
+
+    if (type === 'hooks') {
+      prompt += `Write 3 short hook-style thoughts.`;
+    }
+
+    bot.sendMessage(id, 'Generating… ⏳');
 
     try {
       const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -160,7 +228,7 @@ Language: ${lang === 'indian' ? 'Indian English' : 'Global English'}
         body: JSON.stringify({
           model: 'mistralai/mistral-7b-instruct',
           messages: [{ role: 'system', content: prompt }],
-          max_tokens: 120
+          max_tokens: 160
         })
       });
 
@@ -173,22 +241,23 @@ Language: ${lang === 'indian' ? 'Indian English' : 'Global English'}
         { parse_mode: 'Markdown' }
       );
     } catch {
-      return bot.sendMessage(id, 'AI busy. Try again.');
+      return bot.sendMessage(id, 'AI busy. Try again later.');
     }
   }
 });
 
 // --- PAYMENT FLOW ---
 bot.onText(/PAID/i, msg => {
-  userState[msg.chat.id] = { pay: true };
-  bot.sendMessage(msg.chat.id, 'Send payment screenshot.');
+  userState[msg.chat.id] = { awaitingPaymentProof: true };
+  bot.sendMessage(msg.chat.id, '💳 Send payment screenshot or TXN ID.');
 });
 
 bot.on('message', msg => {
-  if (userState[msg.chat.id]?.pay && msg.photo) {
-    bot.sendMessage(ADMIN_ID, `💰 Payment proof from ${msg.chat.id}`);
-    userState[msg.chat.id] = {};
-    bot.sendMessage(msg.chat.id, '⏳ Verification in progress.');
+  const id = msg.chat.id;
+  if (userState[id]?.awaitingPaymentProof && msg.photo) {
+    bot.sendMessage(ADMIN_ID, `💰 Payment proof received from ${id}`);
+    userState[id] = {};
+    bot.sendMessage(id, '⏳ Verification in progress.');
   }
 });
 
@@ -198,4 +267,4 @@ bot.onText(/\/approve (\d+)/, (msg, match) => {
   bot.sendMessage(match[1], '✅ Paid plan activated.');
 });
 
-console.log('✅ Bot running');
+console.log('✅ AI Discipline & Skills Bot Running...');
