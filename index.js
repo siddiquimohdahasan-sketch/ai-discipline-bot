@@ -1,76 +1,64 @@
-// --- HTTP keep-alive server ---
+// --- Render keep-alive server (MUST be at top) ---
 const http = require('http');
-const PORT = process.env.PORT || 3000;
-http.createServer((req, res) => {
-  res.writeHead(200);
-  res.end('OK');
-}).listen(PORT);
 
-// --- Imports ---
-const fs = require('fs');
+const PORT = process.env.PORT || 3000;
+
+http.createServer((req, res) => {
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.end('OK');
+}).listen(PORT, () => {
+  console.log(`🌐 HTTP server running on port ${PORT}`);
+});
+
 const TelegramBot = require('node-telegram-bot-api');
 const fetch = require('node-fetch');
 
-// --- ENV ---
+/* =======================
+   🔑 CONFIGURATION
+======================= */
+
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const AI_API_KEY = process.env.AI_API_KEY;
-const ADMIN_ID = Number(process.env.ADMIN_ID);
 
-// --- DB ---
-const DB_FILE = './db.json';
+// 👑 ADMIN ID (numeric)
+const ADMIN_ID =Number(process.env.ADMIN_ID);
 
-function loadDB() {
-  if (!fs.existsSync(DB_FILE)) {
-    fs.writeFileSync(DB_FILE, JSON.stringify({ users: {} }, null, 2));
-  }
-  return JSON.parse(fs.readFileSync(DB_FILE));
-}
+/* =======================
+   USER PLANS (MANUAL)
+======================= */
 
-function saveDB(db) {
-  fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
-}
+const paidUsers = {
+  // 987654321: { plan: 'monthly' },
+  // 112233445: { plan: 'lifetime' }
+};
 
-function today() {
-  return new Date().toISOString().split('T')[0];
-}
+/* =======================
+   BOT INIT
+======================= */
 
-// --- PLANS ---
-const paidUsers = {}; // manual approve for now
+const bot = new TelegramBot(BOT_TOKEN, { polling: true });
+const userState = {};
+const userCredits = {};
+
+/* =======================
+   HELPERS
+======================= */
+
 const isAdmin = id => id === ADMIN_ID;
 
-function dailyLimit(id) {
+const dailyLimit = id => {
   if (isAdmin(id)) return 9999;
   if (paidUsers[id]) return paidUsers[id].plan === 'lifetime' ? 9999 : 20;
   return 3;
-}
+};
 
-function getCredits(id) {
-  const db = loadDB();
-  const t = today();
-
-  if (!db.users[id] || db.users[id].date !== t) {
-    db.users[id] = { credits: dailyLimit(id), date: t };
-    saveDB(db);
-  }
-  return db.users[id].credits;
-}
-
-function useCredit(id) {
-  const db = loadDB();
-  if (db.users[id]) {
-    db.users[id].credits--;
-    saveDB(db);
-  }
-}
-
-// --- BOT INIT ---
-const bot = new TelegramBot(BOT_TOKEN, { polling: true });
-const userState = {};
-
-// --- HELPERS ---
 const platformsAllowed = id => {
   if (isAdmin(id)) return ['telegram', 'whatsapp', 'instagram', 'twitter'];
-  if (paidUsers[id]) return ['telegram', 'whatsapp', 'instagram', 'twitter'];
+  if (paidUsers[id]) {
+    return paidUsers[id].plan === 'lifetime'
+      ? ['telegram', 'whatsapp', 'instagram', 'twitter']
+      : ['telegram', 'whatsapp', 'instagram'];
+  }
   return ['telegram'];
 };
 
@@ -79,18 +67,25 @@ const typesAllowed = id => {
   return ['motivation', 'quote'];
 };
 
-// --- START ---
+/* =======================
+   START
+======================= */
+
 bot.onText(/\/start/, msg => {
   const id = msg.chat.id;
+  userCredits[id] = dailyLimit(id);
 
   bot.sendMessage(
     id,
     `👋 *AI Discipline & Skills Bot*
 
-🆓 Free: 3 posts/day  
-💰 Paid: Higher limits
+Clean, realistic content.
+No fake motivation. No hype.
 
-👇 Start below`,
+🆓 Free: 3 posts/day  
+💰 Paid: Higher limits + premium tone
+
+👇 Start generating`,
     {
       parse_mode: 'Markdown',
       reply_markup: {
@@ -106,25 +101,34 @@ bot.onText(/\/start/, msg => {
   );
 });
 
-// --- CALLBACKS ---
+/* =======================
+   CALLBACKS
+======================= */
+
 bot.on('callback_query', async q => {
   const id = q.message.chat.id;
   const data = q.data;
-  bot.answerCallbackQuery(q.id);
 
-  // ---- LIMIT INFO ----
+  bot.answerCallbackQuery(q.id);
+  userState[id] = userState[id] || {};
+
+  // ---------- LIMIT INFO ----------
   if (data === 'limit') {
-    const credits = isAdmin(id) ? 'Unlimited' : getCredits(id);
     return bot.sendMessage(
       id,
-      `📊 *Your Limit*
+      `ℹ️ *Plan info*
 
-Remaining today: *${credits}*`,
+You’re on the free plan.
+
+Upgrade to unlock:
+• Higher daily limits
+• Multiple platforms
+• Premium writing`,
       { parse_mode: 'Markdown' }
     );
   }
 
-  // ---- PAID ----
+  // ---------- PAID PLANS ----------
   if (data === 'paid') {
     return bot.sendMessage(
       id,
@@ -132,30 +136,30 @@ Remaining today: *${credits}*`,
 
 ₹299 / month  
 • 20 posts/day  
+• Premium writing  
 
 ₹999 Lifetime  
 • Unlimited posts  
+• All platforms
 
 Reply *PAID* to upgrade.`,
       { parse_mode: 'Markdown' }
     );
   }
 
-  // ---- GENERATE ----
+  // ---------- GENERATE ----------
   if (data === 'generate') {
-    const credits = isAdmin(id) ? 9999 : getCredits(id);
 
-    if (credits <= 0 && !isAdmin(id)) {
+    if (userCredits[id] <= 0 && !isAdmin(id)) {
       return bot.sendMessage(
         id,
         `🚫 *Daily limit reached*
 
-Free users get only 3 posts/day.`,
+You’ve used all your free posts for today.
+Upgrade to continue.`,
         { parse_mode: 'Markdown' }
       );
     }
-
-    userState[id] = {};
 
     const buttons = platformsAllowed(id).map(p => [
       { text: p.toUpperCase(), callback_data: `platform_${p}` }
@@ -166,7 +170,7 @@ Free users get only 3 posts/day.`,
     });
   }
 
-  // ---- PLATFORM ----
+  // ---------- PLATFORM ----------
   if (data.startsWith('platform_')) {
     userState[id].platform = data.replace('platform_', '');
 
@@ -179,7 +183,7 @@ Free users get only 3 posts/day.`,
     });
   }
 
-  // ---- TYPE ----
+  // ---------- TYPE ----------
   if (data.startsWith('type_')) {
     userState[id].type = data.replace('type_', '');
 
@@ -193,27 +197,73 @@ Free users get only 3 posts/day.`,
     });
   }
 
-  // ---- LANGUAGE → AI ----
+  // ---------- LANGUAGE → AI CALL ----------
   if (data.startsWith('lang_')) {
     const lang = data.replace('lang_', '');
     const { platform, type } = userState[id];
     userState[id] = {};
 
-    if (!isAdmin(id)) useCredit(id);
+    if (!isAdmin(id)) userCredits[id]--;
 
     let prompt = `
 You are NOT an assistant.
-Output ONLY final post-ready content.
+You do NOT explain.
+You output ONLY final post-ready content.
 
-Topic: discipline, effort, consistency, skills.
-Write 2–4 short sharp lines.
+Topic scope (STRICT):
+discipline, effort, consistency, skills, self-improvement.
+
+Money is allowed ONLY as an outcome of discipline and skills.
+Do NOT promise money.
+Do NOT mention income numbers.
+Do NOT sell anything.
+
+Writing style:
+• Short, sharp sentences
+• Truth-based, not inspirational
+• Slightly bold, realistic tone
+• Human, modern voice
+
+Guidelines:
+• Write like someone sharing a hard-earned realization
+• No teaching, no advising, no explaining
+• Avoid overused motivational phrases
+• Avoid poetic or textbook-style language
+• If a line sounds like advice, rewrite it as an observation
+• Maximum 3 short lines (except hooks)
 
 Platform: ${platform}
 Language: ${lang === 'indian' ? 'Indian English' : 'Global English'}
+Output format (STRICT):
+• Write exactly 2-4 lines.
+• Each line must be one short sentence.
+• No numbering.
+• No bullet points.
+• No extra lines or spacing.
+• Stop after the third line.
 `;
 
+    if (type === 'motivation') {
+      prompt += `
+Write blunt, practical motivation.
+No fluff. No inspiration talk.
+`;
+    }
+
+    if (type === 'quote') {
+      prompt += `
+Write ONE original quote.
+Then add 1–2 supporting lines.
+`;
+    }
+
     if (type === 'hooks') {
-      prompt += `Write 3 short hook-style thoughts.`;
+      prompt += `
+Write 3 short hook-style thoughts.
+Each hook must present a contrast, tension, or uncomfortable truth.
+No motivational advice.
+Each hook should be standalone and scroll-stopping.
+`;
     }
 
     bot.sendMessage(id, 'Generating… ⏳');
@@ -235,36 +285,72 @@ Language: ${lang === 'indian' ? 'Indian English' : 'Global English'}
       const json = await res.json();
       const text = json.choices[0].message.content.trim();
 
-      return bot.sendMessage(
-        id,
-        `✍️ *Content Ready*\n\n${text}`,
-        { parse_mode: 'Markdown' }
-      );
-    } catch {
+      let footer = '';
+      if (!paidUsers[id] && !isAdmin(id)) {
+        footer = `\n\n—\nGenerated by @YourBotName`;
+      }
+
+     return bot.sendMessage(
+  id,
+  `✍️ *Content Ready*\n\n${text}${footer}`,
+  { parse_mode: 'Markdown' }
+);
+    } catch (e) {
+      console.error(e);
       return bot.sendMessage(id, 'AI busy. Try again later.');
     }
   }
 });
 
-// --- PAYMENT FLOW ---
+console.log('✅ AI Discipline & Skills Bot Running...');
+
+// ===== PAYMENT PROOF FLOW =====
+
+// user sends PAID
 bot.onText(/PAID/i, msg => {
-  userState[msg.chat.id] = { awaitingPaymentProof: true };
-  bot.sendMessage(msg.chat.id, '💳 Send payment screenshot or TXN ID.');
+  const id = msg.chat.id;
+
+  userState[id] = { awaitingPaymentProof: true };
+
+  bot.sendMessage(
+    id,
+    `💳 Please send your payment screenshot or transaction ID.
+
+After verification, your paid plan will be activated.`
+  );
 });
 
+
+// receive screenshot
 bot.on('message', msg => {
   const id = msg.chat.id;
+
   if (userState[id]?.awaitingPaymentProof && msg.photo) {
-    bot.sendMessage(ADMIN_ID, `💰 Payment proof received from ${id}`);
-    userState[id] = {};
-    bot.sendMessage(id, '⏳ Verification in progress.');
+
+    // notify admin
+    bot.sendMessage(
+      ADMIN_ID,
+      `💰 Payment proof received from user: ${id}`
+    );
+
+    userState[id].awaitingPaymentProof = false;
+
+    bot.sendMessage(
+      id,
+      `⏳ Proof received. Activation in progress.`
+    );
   }
 });
 
+
+// admin approve command
 bot.onText(/\/approve (\d+)/, (msg, match) => {
   if (!isAdmin(msg.chat.id)) return;
-  paidUsers[match[1]] = { plan: 'monthly' };
-  bot.sendMessage(match[1], '✅ Paid plan activated.');
-});
 
-console.log('✅ AI Discipline & Skills Bot Running...');
+  const uid = Number(match[1]);
+
+  paidUsers[uid] = { plan: 'monthly' };
+
+  bot.sendMessage(uid, `✅ Your paid plan is now active.`);
+  bot.sendMessage(msg.chat.id, `User ${uid} approved.`);
+});
