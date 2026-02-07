@@ -284,6 +284,10 @@ Output format (STRICT):
 • No bullet points.
 • No extra lines or spacing.
 • Stop after the third line.
+Formatting rules:
+Each line must be on a new line.
+Use line breaks between lines.
+Do not merge lines.
 `;
 
     if (type === 'motivation') {
@@ -397,6 +401,7 @@ bot.onText(/\/approve (\d+)/, (msg, match) => {
   bot.sendMessage(uid, `✅ Your paid plan is now active.`);
   bot.sendMessage(msg.chat.id, `User ${uid} approved.`);
 });
+
 
 
 
