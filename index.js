@@ -59,7 +59,7 @@ const userCredits = {};
    HELPERS
 ======================= */
 
-const isAdmin = id => id === ADMIN_ID;
+const isAdmin = id => Number(id) === ADMIN_ID;
 
 const dailyLimit = id => {
   if (isAdmin(id)) return 9999;
@@ -190,6 +190,14 @@ Reply *PAID* to upgrade.`,
 
   // ---------- GENERATE ----------
 if (data === 'generate') {
+console.log(
+  'USER:',
+  id,
+  'ADMIN:',
+  ADMIN_ID,
+  'isAdmin:',
+  Number(id) === ADMIN_ID
+);
 
   const creditsLeft = isAdmin(id) ? 9999 : getUserCredits(id);
 
@@ -427,6 +435,7 @@ Thank you for upgrading 🙌`
 );
   bot.sendMessage(msg.chat.id, `User ${uid} approved.`);
 });
+
 
 
 
