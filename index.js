@@ -191,12 +191,10 @@ Reply *PAID* to upgrade.`,
   // ---------- GENERATE ----------
 if (data === 'generate') {
 console.log(
-  'USER:',
-  id,
-  'ADMIN:',
-  ADMIN_ID,
-  'isAdmin:',
-  Number(id) === ADMIN_ID
+  '[DEBUG]',
+  'User ID:', id,
+  'ADMIN_ID:', ADMIN_ID,
+  'isAdmin:', Number(id) === ADMIN_ID
 );
 
   const creditsLeft = isAdmin(id) ? 9999 : getUserCredits(id);
@@ -435,6 +433,7 @@ Thank you for upgrading 🙌`
 );
   bot.sendMessage(msg.chat.id, `User ${uid} approved.`);
 });
+
 
 
 
