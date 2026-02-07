@@ -198,7 +198,13 @@ if (data === 'generate') {
       id,
       `🚫 *Daily limit reached*
 
-Free users can generate only 3 posts per day.
+You’ve used all free posts for today.
+
+💎 *Paid users get*
+• Higher daily limits  
+• Sharper writing tone  
+• Priority access  
+
 Reply *PAID* to upgrade.`,
       { parse_mode: 'Markdown' }
     );
@@ -364,9 +370,20 @@ bot.onText(/PAID/i, msg => {
 
   bot.sendMessage(
     id,
-    `💳 Please send your payment screenshot or transaction ID.
+    `💳 *Upgrade to Paid Access*
 
-After verification, your paid plan will be activated.`
+Unlock higher daily limits and premium-quality content.
+
+💰 *Plans*
+₹299 – Monthly  
+₹999 – Lifetime  
+
+📸 Send your payment screenshot or transaction ID.
+
+⚠️ Only payments made to our official account are accepted.
+Fake or unrelated screenshots will be ignored.
+
+Your access will be activated after verification.`
   );
 });
 
@@ -401,9 +418,16 @@ bot.onText(/\/approve (\d+)/, (msg, match) => {
 
   paidUsers[uid] = { plan: 'monthly' };
 
-  bot.sendMessage(uid, `✅ Your paid plan is now active.`);
+  bot.sendMessage(
+  uid,
+  `✅ *Paid access activated*
+
+You now have higher limits and premium content access.
+Thank you for upgrading 🙌`
+);
   bot.sendMessage(msg.chat.id, `User ${uid} approved.`);
 });
+
 
 
 
