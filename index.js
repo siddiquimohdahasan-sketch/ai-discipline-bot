@@ -114,7 +114,11 @@ const typesAllowed = id => {
 
 bot.onText(/\/start/, msg => {
   const id = msg.chat.id;
-  userCredits[id] = dailyLimit(id);
+
+  // ✅ Credit sirf pehli baar set karo
+  if (userCredits[id] === undefined) {
+    userCredits[id] = dailyLimit(id);
+  }
 
   bot.sendMessage(
     id,
@@ -190,16 +194,18 @@ Reply *PAID* to upgrade.`,
 
   // ---------- GENERATE ----------
 if (data === 'generate') {
-console.log(
-  '[DEBUG]',
-  'User ID:', id,
-  'ADMIN_ID:', ADMIN_ID,
-  'isAdmin:', Number(id) === ADMIN_ID
-);
 
-  const creditsLeft = isAdmin(id) ? 9999 : getUserCredits(id);
+  // 🧪 DEBUG (temporary – test ke baad hata dena)
+  console.log(
+    '[DEBUG]',
+    'User ID:', id,
+    'ADMIN_ID:', ADMIN_ID,
+    'isAdmin:', Number(id) === ADMIN_ID,
+    'Credits:', userCredits[id]
+  );
 
-  if (creditsLeft <= 0 && !isAdmin(id)) {
+  // 🛑 LIMIT CHECK
+  if (!isAdmin(id) && userCredits[id] <= 0) {
     return bot.sendMessage(
       id,
       `🚫 *Daily limit reached*
@@ -215,6 +221,17 @@ Reply *PAID* to upgrade.`,
       { parse_mode: 'Markdown' }
     );
   }
+
+  // ✅ ALLOW GENERATION
+  const buttons = platformsAllowed(id).map(p => [
+    { text: p.toUpperCase(), callback_data: `platform_${p}` }
+  ]);
+
+  return bot.sendMessage(id, 'Choose platform:', {
+    reply_markup: { inline_keyboard: buttons }
+  });
+}
+
 
   const buttons = platformsAllowed(id).map(p => [
     { text: p.toUpperCase(), callback_data: `platform_${p}` }
@@ -433,6 +450,7 @@ Thank you for upgrading 🙌`
 );
   bot.sendMessage(msg.chat.id, `User ${uid} approved.`);
 });
+
 
 
 
