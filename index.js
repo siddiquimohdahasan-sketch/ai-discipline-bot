@@ -115,7 +115,6 @@ const typesAllowed = id => {
 bot.onText(/\/start/, msg => {
   const id = msg.chat.id;
 
-  // ✅ Credit sirf pehli baar set karo
   if (userCredits[id] === undefined) {
     userCredits[id] = dailyLimit(id);
   }
@@ -127,7 +126,7 @@ bot.onText(/\/start/, msg => {
 Clean, realistic content.
 No fake motivation. No hype.
 
-🆓 Free: 3 posts/day  
+🆓 Free: 3 posts/day
 💰 Paid: Higher limits + premium tone
 
 👇 Start generating`,
@@ -196,7 +195,7 @@ Reply *PAID* to upgrade.`,
   // ---------- GENERATE ----------
 if (data === 'generate') {
 
-  // 🧪 DEBUG (temporary – test ke baad hata dena)
+  // 🧪 DEBUG (temporary)
   console.log(
     '[DEBUG]',
     'User ID:', id,
@@ -205,7 +204,6 @@ if (data === 'generate') {
     'Credits:', userCredits[id]
   );
 
-  // 🛑 LIMIT CHECK
   if (!isAdmin(id) && userCredits[id] <= 0) {
     return bot.sendMessage(
       id,
@@ -214,14 +212,26 @@ if (data === 'generate') {
 You’ve used all free posts for today.
 
 💎 *Paid users get*
-• Higher daily limits  
-• Sharper writing tone  
-• Priority access  
+• Higher daily limits
+• Sharper writing tone
+• Priority access
 
 Reply *PAID* to upgrade.`,
       { parse_mode: 'Markdown' }
     );
   }
+
+  const buttons = platformsAllowed(id).map(p => [
+    { text: p.toUpperCase(), callback_data: `platform_${p}` }
+  ]);
+
+  return bot.sendMessage(
+    id,
+    'Choose platform:',
+    { reply_markup: { inline_keyboard: buttons } }
+  );
+}
+
 
   // ✅ ALLOW GENERATION
   const buttons = platformsAllowed(id).map(p => [
@@ -451,6 +461,7 @@ Thank you for upgrading 🙌`
 );
   bot.sendMessage(msg.chat.id, `User ${uid} approved.`);
 });
+
 
 
 
