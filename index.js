@@ -250,7 +250,7 @@ Guidelines:
 • Maximum 3 short lines (except hooks)
 
 Platform: ${platform}
-Language: ${ 'Indian English' : 'Global English'}
+Language: ${language}
 Output format (STRICT):
 • Write exactly 3 lines.
 • Each line must be one short sentence.
@@ -395,6 +395,7 @@ Thank you for upgrading 🙌`
 });
 
   
+
 
 
 
