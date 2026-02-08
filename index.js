@@ -195,7 +195,7 @@ Reply *PAID* to upgrade.`,
   // ---------- GENERATE ----------
 if (data === 'generate') {
 
-  // 🧪 DEBUG (temporary)
+  // TEMP DEBUG
   console.log(
     '[DEBUG]',
     'User ID:', id,
@@ -221,9 +221,11 @@ Reply *PAID* to upgrade.`,
     );
   }
 
-  const buttons = platformsAllowed(id).map(p => [
-    { text: p.toUpperCase(), callback_data: `platform_${p}` }
-  ]);
+  const buttons = platformsAllowed(id).map(p => {
+    return [
+      { text: p.toUpperCase(), callback_data: `platform_${p}` }
+    ];
+  });
 
   return bot.sendMessage(
     id,
@@ -241,7 +243,7 @@ Reply *PAID* to upgrade.`,
   return bot.sendMessage(id, 'Choose platform:', {
     reply_markup: { inline_keyboard: buttons }
   });
-
+}
 
   const buttons = platformsAllowed(id).map(p => [
     { text: p.toUpperCase(), callback_data: `platform_${p}` }
@@ -460,6 +462,7 @@ Thank you for upgrading 🙌`
 );
   bot.sendMessage(msg.chat.id, `User ${uid} approved.`);
 });
+
 
 
 
