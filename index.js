@@ -207,16 +207,35 @@ bot.on('callback_query', async q => {
     });
   }
 
-  // LANGUAGE (FINAL, SAFE)
+  // ===============================
+// LANGUAGE → AI CALL
+// ===============================
+if (data.startsWith('lang_')) {
+
+  const langKey = data.replace('lang_', ''); // indian | global
+
   const { platform, type } = userState[id];
-
   userState[id] = {};
-  if (data.startsWith('lang_')) {
-    const creditsLeft = isAdmin(id) ? 9999 : getUserCredits(id);
 
-    if (!isAdmin(id) && creditsLeft <= 0) {
-      return bot.sendMessage(id, '🚫 Daily limit reached', { parse_mode: 'Markdown' });
+  const language =
+    langKey === 'indian' ? 'Indian English' : 'Global English';
+
+  // ---- CREDIT CHECK (FINAL) ----
+  if (!isAdmin(id)) {
+    const creditsLeft = getUserCredits(id);
+    if (creditsLeft <= 0) {
+      return bot.sendMessage(
+        id,
+        `🚫 *Daily limit reached*
+
+Upgrade to continue.`,
+        { parse_mode: 'Markdown' }
+      );
     }
+    useCredit(id);
+  }
+`;
+
 
     // ==================================================
     // 🔴🔴🔴 PROMPT START (PASTE YOUR PROMPT BELOW) 🔴🔴🔴
@@ -250,7 +269,7 @@ Guidelines:
 • Maximum 3 short lines (except hooks)
 
 Platform: ${platform}
-Language: ${lang === 'indian' ? 'Indian English' : 'Global English'}
+Language: ${language}
 Output format (STRICT):
 • Write exactly 3 lines.
 • Each line must be one short sentence.
@@ -395,6 +414,7 @@ Thank you for upgrading 🙌`
 });
 
   
+
 
 
 
