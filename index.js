@@ -241,7 +241,6 @@ Reply *PAID* to upgrade.`,
   return bot.sendMessage(id, 'Choose platform:', {
     reply_markup: { inline_keyboard: buttons }
   });
-}
 
 
   const buttons = platformsAllowed(id).map(p => [
@@ -461,6 +460,7 @@ Thank you for upgrading 🙌`
 );
   bot.sendMessage(msg.chat.id, `User ${uid} approved.`);
 });
+
 
 
 
