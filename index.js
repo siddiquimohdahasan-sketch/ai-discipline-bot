@@ -1,6 +1,5 @@
-// --- Render keep-alive server (MUST be at top) ---
+// --- Render / Railway keep-alive server ---
 const http = require('http');
-
 const PORT = process.env.PORT || 3000;
 
 http.createServer((req, res) => {
@@ -13,9 +12,13 @@ http.createServer((req, res) => {
 const TelegramBot = require('node-telegram-bot-api');
 const fetch = require('node-fetch');
 const fs = require('fs');
+
 const DB_FILE = './db.json';
 
-// load database
+/* =======================
+   DATABASE HELPERS
+======================= */
+
 function loadDB() {
   if (!fs.existsSync(DB_FILE)) {
     fs.writeFileSync(DB_FILE, JSON.stringify({ users: {} }, null, 2));
@@ -23,29 +26,21 @@ function loadDB() {
   return JSON.parse(fs.readFileSync(DB_FILE));
 }
 
-// save database
 function saveDB(db) {
   fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
 }
 
+function getToday() {
+  return new Date().toISOString().split('T')[0];
+}
+
 /* =======================
-   🔑 CONFIGURATION
+   CONFIG
 ======================= */
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const AI_API_KEY = process.env.AI_API_KEY;
-
-// 👑 ADMIN ID (numeric)
-const ADMIN_ID =Number(process.env.ADMIN_ID);
-
-/* =======================
-   USER PLANS (MANUAL)
-======================= */
-
-const paidUsers = {
-  // 987654321: { plan: 'monthly' },
-  // 112233445: { plan: 'lifetime' }
-};
+const ADMIN_ID = Number(process.env.ADMIN_ID);
 
 /* =======================
    BOT INIT
@@ -53,11 +48,12 @@ const paidUsers = {
 
 const bot = new TelegramBot(BOT_TOKEN, { polling: true });
 const userState = {};
-const userCredits = {};
 
 /* =======================
-   HELPERS
+   PLANS & LIMITS
 ======================= */
+
+const paidUsers = {}; // approved users only
 
 const isAdmin = id => Number(id) === ADMIN_ID;
 
@@ -66,9 +62,10 @@ const dailyLimit = id => {
   if (paidUsers[id]) return paidUsers[id].plan === 'lifetime' ? 9999 : 20;
   return 3;
 };
-function getToday() {
-  return new Date().toISOString().split('T')[0];
-}
+
+/* =======================
+   CREDIT SYSTEM (ONLY DB)
+======================= */
 
 function getUserCredits(id) {
   const db = loadDB();
@@ -93,13 +90,13 @@ function useCredit(id) {
   }
 }
 
+/* =======================
+   ALLOWED OPTIONS
+======================= */
+
 const platformsAllowed = id => {
   if (isAdmin(id)) return ['telegram', 'whatsapp', 'instagram', 'twitter'];
-  if (paidUsers[id]) {
-    return paidUsers[id].plan === 'lifetime'
-      ? ['telegram', 'whatsapp', 'instagram', 'twitter']
-      : ['telegram', 'whatsapp', 'instagram'];
-  }
+  if (paidUsers[id]) return ['telegram', 'whatsapp', 'instagram'];
   return ['telegram'];
 };
 
@@ -109,16 +106,14 @@ const typesAllowed = id => {
 };
 
 /* =======================
-   START
+   /START
 ======================= */
 
 bot.onText(/\/start/, msg => {
   const id = msg.chat.id;
 
-  // ✅ INIT CREDITS FOR EVERY NEW USER
-  if (userCredits[id] === undefined) {
-    userCredits[id] = dailyLimit(id);
-  }
+  // ensure user exists in DB
+  getUserCredits(id);
 
   bot.sendMessage(
     id,
@@ -146,7 +141,6 @@ No fake motivation. No hype.
   );
 });
 
-
 /* =======================
    CALLBACKS
 ======================= */
@@ -158,85 +152,62 @@ bot.on('callback_query', async q => {
   bot.answerCallbackQuery(q.id);
   userState[id] = userState[id] || {};
 
-  // ---------- LIMIT INFO ----------
+  // ----- LIMIT -----
   if (data === 'limit') {
+    const left = isAdmin(id) ? 'Unlimited' : getUserCredits(id);
     return bot.sendMessage(
       id,
-      `ℹ️ *Plan info*
-
-You’re on the free plan.
-
-Upgrade to unlock:
-• Higher daily limits
-• Multiple platforms
-• Premium writing`,
+      `📊 *Today’s remaining posts:* ${left}`,
       { parse_mode: 'Markdown' }
     );
   }
 
-  // ---------- PAID PLANS ----------
+  // ----- PAID -----
   if (data === 'paid') {
     return bot.sendMessage(
       id,
       `💼 *Paid Plans*
 
-₹299 / month  
-• 20 posts/day  
-• Premium writing  
-
-₹999 Lifetime  
-• Unlimited posts  
-• All platforms
+₹299 / month – 20 posts/day  
+₹999 Lifetime – Unlimited
 
 Reply *PAID* to upgrade.`,
       { parse_mode: 'Markdown' }
     );
   }
 
-  // ---------- GENERATE ----------
-if (data === 'generate') {
+  // ----- GENERATE -----
+  if (data === 'generate') {
+    const creditsLeft = isAdmin(id) ? 9999 : getUserCredits(id);
 
-  // TEMP DEBUG
-  console.log(
-    '[DEBUG]',
-    'User ID:', id,
-    'ADMIN_ID:', ADMIN_ID,
-    'isAdmin:', Number(id) === ADMIN_ID,
-    'Credits:', userCredits[id]
-  );
-
-  if (!isAdmin(id) && userCredits[id] <= 0) {
-    return bot.sendMessage(
-      id,
-      `🚫 *Daily limit reached*
-
-You’ve used all free posts for today.
-
-💎 *Paid users get*
-• Higher daily limits
-• Sharper writing tone
-• Priority access
-
-Reply *PAID* to upgrade.`,
-      { parse_mode: 'Markdown' }
+    console.log(
+      '[DEBUG]',
+      'User:', id,
+      'Admin:', isAdmin(id),
+      'Credits:', creditsLeft
     );
-  }
 
-  const buttons = platformsAllowed(id).map(p => {
-    return [
+    if (!isAdmin(id) && creditsLeft <= 0) {
+      return bot.sendMessage(
+        id,
+        `🚫 *Daily limit reached*
+
+You’ve used all free posts today.
+Reply *PAID* to upgrade.`,
+        { parse_mode: 'Markdown' }
+      );
+    }
+
+    const buttons = platformsAllowed(id).map(p => [
       { text: p.toUpperCase(), callback_data: `platform_${p}` }
-    ];
-  });
+    ]);
 
-  return bot.sendMessage(
-    id,
-    'Choose platform:',
-    { reply_markup: { inline_keyboard: buttons } }
-  );
-}
+    return bot.sendMessage(id, 'Choose platform:', {
+      reply_markup: { inline_keyboard: buttons }
+    });
+  }
 
-
-  // ---------- PLATFORM ----------
+  // ----- PLATFORM -----
   if (data.startsWith('platform_')) {
     userState[id].platform = data.replace('platform_', '');
 
@@ -249,7 +220,7 @@ Reply *PAID* to upgrade.`,
     });
   }
 
-  // ---------- TYPE ----------
+  // ----- TYPE -----
   if (data.startsWith('type_')) {
     userState[id].type = data.replace('type_', '');
 
@@ -263,13 +234,11 @@ Reply *PAID* to upgrade.`,
     });
   }
 
-  // ---------- LANGUAGE → AI CALL ----------
-  if (data.startsWith('lang_')) {
+  // ----- LANGUAGE → PROMPT CONTINUES IN PART-2 -----
+if (data.startsWith('lang_')) {
     const lang = data.replace('lang_', '');
     const { platform, type } = userState[id];
     userState[id] = {};
-
-    if (!isAdmin(id)) useCredit(id);
 
     let prompt = `
 You are NOT an assistant.
@@ -333,9 +302,6 @@ Then add 1–2 supporting lines.
     if (type === 'hooks') {
       prompt += `
 Write 3 short hook-style thoughts.
-Each hook must present a contrast, tension, or uncomfortable truth.
-No motivational advice.
-Each hook should be standalone and scroll-stopping.
 `;
     }
 
@@ -358,16 +324,17 @@ Each hook should be standalone and scroll-stopping.
       const json = await res.json();
       const text = json.choices[0].message.content.trim();
 
-// ✅ CREDIT KAM KARO (FINAL & SIMPLE)
-if (!isAdmin(id)) {
-  userCredits[id] = userCredits[id] - 1;
-}
+      // ✅ CREDIT CUT — ONLY HERE
+      if (!isAdmin(id)) {
+        useCredit(id);
+      }
 
-return bot.sendMessage(
-  id,
-  `✍️ *Content Ready*\n\n${text}`,
-  { parse_mode: 'Markdown' }
-);
+      return bot.sendMessage(
+        id,
+        `✍️ *Content Ready*\n\n${text}`,
+        { parse_mode: 'Markdown' }
+      );
+
     } catch (e) {
       console.error(e);
       return bot.sendMessage(id, 'AI busy. Try again later.');
@@ -444,6 +411,7 @@ Thank you for upgrading 🙌`
 );
   bot.sendMessage(msg.chat.id, `User ${uid} approved.`);
 });
+
 
 
 
