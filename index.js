@@ -112,7 +112,7 @@ const typesAllowed = id => {
 bot.onText(/\/start/, msg => {
   const id = msg.chat.id;
 
-  // ensure user exists in DB
+  // ✅ ensure user exists in DB
   getUserCredits(id);
 
   bot.sendMessage(
@@ -140,6 +140,7 @@ No fake motivation. No hype.
     }
   );
 });
+
 
 /* =======================
    CALLBACKS
@@ -178,34 +179,34 @@ Reply *PAID* to upgrade.`,
 
   // ----- GENERATE -----
   if (data === 'generate') {
-    const creditsLeft = isAdmin(id) ? 9999 : getUserCredits(id);
+  const creditsLeft = isAdmin(id) ? 9999 : getUserCredits(id);
 
-    console.log(
-      '[DEBUG]',
-      'User:', id,
-      'Admin:', isAdmin(id),
-      'Credits:', creditsLeft
-    );
+  console.log(
+    '[DEBUG]',
+    'User:', id,
+    'Admin:', isAdmin(id),
+    'Credits:', creditsLeft
+  );
 
-    if (!isAdmin(id) && creditsLeft <= 0) {
-      return bot.sendMessage(
-        id,
-        `🚫 *Daily limit reached*
+  if (!isAdmin(id) && creditsLeft <= 0) {
+    return bot.sendMessage(
+      id,
+      `🚫 *Daily limit reached*
 
-You’ve used all free posts today.
+You’ve used all free posts for today.
 Reply *PAID* to upgrade.`,
-        { parse_mode: 'Markdown' }
-      );
-    }
-
-    const buttons = platformsAllowed(id).map(p => [
-      { text: p.toUpperCase(), callback_data: `platform_${p}` }
-    ]);
-
-    return bot.sendMessage(id, 'Choose platform:', {
-      reply_markup: { inline_keyboard: buttons }
-    });
+      { parse_mode: 'Markdown' }
+    );
   }
+
+  const buttons = platformsAllowed(id).map(p => [
+    { text: p.toUpperCase(), callback_data: `platform_${p}` }
+  ]);
+
+  return bot.sendMessage(id, 'Choose platform:', {
+    reply_markup: { inline_keyboard: buttons }
+  });
+}
 
   // ----- PLATFORM -----
   if (data.startsWith('platform_')) {
@@ -321,19 +322,18 @@ Write 3 short hook-style thoughts.
         })
       });
 
-      const json = await res.json();
       const text = json.choices[0].message.content.trim();
 
-      // ✅ CREDIT CUT — ONLY HERE
-      if (!isAdmin(id)) {
-        useCredit(id);
-      }
+// ✅ ONLY PLACE WHERE CREDIT IS CUT
+if (!isAdmin(id)) {
+  useCredit(id);
+}
 
-      return bot.sendMessage(
-        id,
-        `✍️ *Content Ready*\n\n${text}`,
-        { parse_mode: 'Markdown' }
-      );
+return bot.sendMessage(
+  id,
+  `✍️ *Content Ready*\n\n${text}`,
+  { parse_mode: 'Markdown' }
+);
 
     } catch (e) {
       console.error(e);
@@ -411,6 +411,7 @@ Thank you for upgrading 🙌`
 );
   bot.sendMessage(msg.chat.id, `User ${uid} approved.`);
 });
+
 
 
 
