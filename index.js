@@ -322,7 +322,7 @@ Write 3 short hook-style thoughts.
         })
       });
 
-      const json = await res.json();
+      const json = (await res.json);
       const text = json.choices[0].message.content.trim();
 
       // ✅ CREDIT CUT — ONLY HERE
@@ -412,6 +412,7 @@ Thank you for upgrading 🙌`
 );
   bot.sendMessage(msg.chat.id, `User ${uid} approved.`);
 });
+
 
 
 
