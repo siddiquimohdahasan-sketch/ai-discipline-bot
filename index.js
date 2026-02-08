@@ -115,6 +115,7 @@ const typesAllowed = id => {
 bot.onText(/\/start/, msg => {
   const id = msg.chat.id;
 
+  // ✅ INIT CREDITS FOR EVERY NEW USER
   if (userCredits[id] === undefined) {
     userCredits[id] = dailyLimit(id);
   }
@@ -126,7 +127,7 @@ bot.onText(/\/start/, msg => {
 Clean, realistic content.
 No fake motivation. No hype.
 
-🆓 Free: 3 posts/day
+🆓 Free: 3 posts/day  
 💰 Paid: Higher limits + premium tone
 
 👇 Start generating`,
@@ -443,6 +444,7 @@ Thank you for upgrading 🙌`
 );
   bot.sendMessage(msg.chat.id, `User ${uid} approved.`);
 });
+
 
 
 
