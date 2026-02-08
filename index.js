@@ -235,25 +235,6 @@ Reply *PAID* to upgrade.`,
 }
 
 
-  // ✅ ALLOW GENERATION
-  const buttons = platformsAllowed(id).map(p => [
-    { text: p.toUpperCase(), callback_data: `platform_${p}` }
-  ]);
-
-  return bot.sendMessage(id, 'Choose platform:', {
-    reply_markup: { inline_keyboard: buttons }
-  });
-}
-
-  const buttons = platformsAllowed(id).map(p => [
-    { text: p.toUpperCase(), callback_data: `platform_${p}` }
-  ]);
-
-  return bot.sendMessage(id, 'Choose platform:', {
-    reply_markup: { inline_keyboard: buttons }
-  });
-}
-
   // ---------- PLATFORM ----------
   if (data.startsWith('platform_')) {
     userState[id].platform = data.replace('platform_', '');
@@ -462,6 +443,7 @@ Thank you for upgrading 🙌`
 );
   bot.sendMessage(msg.chat.id, `User ${uid} approved.`);
 });
+
 
 
 
