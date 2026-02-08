@@ -148,45 +148,27 @@ bot.on('callback_query', async q => {
   bot.answerCallbackQuery(q.id);
   userState[id] = userState[id] || {};
 
-  // ----- LIMIT -----
+  // LIMIT
   if (data === 'limit') {
     const left = isAdmin(id) ? 'Unlimited' : getUserCredits(id);
-    return bot.sendMessage(
-      id,
-      `📊 *Today’s remaining posts:* ${left}`,
-      { parse_mode: 'Markdown' }
-    );
+    return bot.sendMessage(id, `📊 Remaining: ${left}`, { parse_mode: 'Markdown' });
   }
 
-  // ----- PAID -----
+  // PAID
   if (data === 'paid') {
     return bot.sendMessage(
       id,
-      `💼 *Paid Plans*
-
-₹299 / month – 20 posts/day  
-₹999 Lifetime – Unlimited
-
-Reply *PAID* to upgrade.`,
+      `💼 Paid Plans\n\n₹299 / month\n₹999 Lifetime\n\nReply *PAID*`,
       { parse_mode: 'Markdown' }
     );
   }
 
-  // ----- GENERATE -----
+  // GENERATE
   if (data === 'generate') {
-    const creditsLeft = isAdmin(id) ? 9999 : getUserCredits(id);
+    const credits = isAdmin(id) ? 9999 : getUserCredits(id);
 
-    console.log('[DEBUG]', id, 'Credits:', creditsLeft);
-
-    if (!isAdmin(id) && creditsLeft <= 0) {
-      return bot.sendMessage(
-        id,
-        `🚫 *Daily limit reached*
-
-You’ve used all free posts today.
-Reply *PAID* to upgrade.`,
-        { parse_mode: 'Markdown' }
-      );
+    if (!isAdmin(id) && credits <= 0) {
+      return bot.sendMessage(id, '🚫 Daily limit reached', { parse_mode: 'Markdown' });
     }
 
     const buttons = platformsAllowed(id).map(p => [
@@ -198,7 +180,7 @@ Reply *PAID* to upgrade.`,
     });
   }
 
-  // ----- PLATFORM -----
+  // PLATFORM
   if (data.startsWith('platform_')) {
     userState[id].platform = data.replace('platform_', '');
 
@@ -211,7 +193,7 @@ Reply *PAID* to upgrade.`,
     });
   }
 
-  // ----- TYPE -----
+  // TYPE
   if (data.startsWith('type_')) {
     userState[id].type = data.replace('type_', '');
 
@@ -225,29 +207,13 @@ Reply *PAID* to upgrade.`,
     });
   }
 
-  // ===============================
-// LANGUAGE → AI CALL  (FINAL FIX)
-// ===============================
-if (data.startsWith('lang_')) {
-  const lang = data.replace('lang_', '');
-  const { platform, type } = userState[id];
-  userState[id] = {};
+  // LANGUAGE (FINAL, SAFE)
+  if (data.startsWith('lang_')) {
+    const creditsLeft = isAdmin(id) ? 9999 : getUserCredits(id);
 
-  // ✅ CREDIT CHECK MUST BE HERE
-  const creditsLeft = isAdmin(id) ? 9999 : getUserCredits(id);
-
-  console.log('[DEBUG]', id, 'Credits before:', creditsLeft);
-
-  if (!isAdmin(id) && creditsLeft <= 0) {
-    return bot.sendMessage(
-      id,
-      `🚫 *Daily limit reached*
-
-You’ve used all free posts for today.
-Reply *PAID* to upgrade.`,
-      { parse_mode: 'Markdown' }
-    );
-  }
+    if (!isAdmin(id) && creditsLeft <= 0) {
+      return bot.sendMessage(id, '🚫 Daily limit reached', { parse_mode: 'Markdown' });
+    }
 
 
     // ==================================================
@@ -326,39 +292,36 @@ Write 3 short hook-style thoughts.
 bot.sendMessage(id, 'Generating… ⏳');
 
   try {
-    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${AI_API_KEY}`
-      },
-      body: JSON.stringify({
-        model: 'mistralai/mistral-7b-instruct',
-        messages: [{ role: 'system', content: prompt }],
-        max_tokens: 160
-      })
-    });
+      const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${AI_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: 'mistralai/mistral-7b-instruct',
+          messages: [{ role: 'system', content: prompt }],
+          max_tokens: 160
+        })
+      });
 
-    const json = await res.json();
-    const text = json.choices[0].message.content.trim();
+      const json = await res.json();
+      const text = json.choices[0].message.content.trim();
 
-    // ✅ CREDIT CUT — ONLY HERE
-    if (!isAdmin(id)) {
-      useCredit(id);
-      console.log('[DEBUG]', id, 'Credit used');
+      if (!isAdmin(id)) useCredit(id);
+
+      return bot.sendMessage(
+        id,
+        `✍️ *Content Ready*\n\n${text}`,
+        { parse_mode: 'Markdown' }
+      );
+
+    } catch (e) {
+      console.error(e);
+      return bot.sendMessage(id, 'AI busy');
     }
-
-    return bot.sendMessage(
-      id,
-      `✍️ *Content Ready*\n\n${text}`,
-      { parse_mode: 'Markdown' }
-    );
-
-  } catch (e) {
-    console.error(e);
-    return bot.sendMessage(id, 'AI busy. Try again later.');
   }
-}
+});
 console.log('✅ AI Discipline & Skills Bot Running...');
 
 // ===== PAYMENT PROOF FLOW =====
@@ -430,6 +393,7 @@ Thank you for upgrading 🙌`
 });
 
   
+
 
 
 
