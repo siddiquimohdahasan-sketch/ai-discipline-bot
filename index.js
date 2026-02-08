@@ -208,13 +208,15 @@ bot.on('callback_query', async q => {
   }
 
   // LANGUAGE (FINAL, SAFE)
+  const { platform, type } = userState[id];
+
+  userState[id] = {};
   if (data.startsWith('lang_')) {
     const creditsLeft = isAdmin(id) ? 9999 : getUserCredits(id);
 
     if (!isAdmin(id) && creditsLeft <= 0) {
       return bot.sendMessage(id, '🚫 Daily limit reached', { parse_mode: 'Markdown' });
     }
-
 
     // ==================================================
     // 🔴🔴🔴 PROMPT START (PASTE YOUR PROMPT BELOW) 🔴🔴🔴
@@ -393,6 +395,7 @@ Thank you for upgrading 🙌`
 });
 
   
+
 
 
 
