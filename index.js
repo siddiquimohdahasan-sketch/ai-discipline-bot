@@ -1,4 +1,6 @@
-// --- Render / Railway keep-alive server ---
+// ===============================
+// KEEP-ALIVE SERVER (Railway/Render)
+// ===============================
 const http = require('http');
 const PORT = process.env.PORT || 3000;
 
@@ -9,15 +11,30 @@ http.createServer((req, res) => {
   console.log(`🌐 HTTP server running on port ${PORT}`);
 });
 
+// ===============================
+// IMPORTS
+// ===============================
 const TelegramBot = require('node-telegram-bot-api');
 const fetch = require('node-fetch');
 const fs = require('fs');
 
-const DB_FILE = './db.json';
+// ===============================
+// CONFIG
+// ===============================
+const BOT_TOKEN = process.env.BOT_TOKEN;
+const AI_API_KEY = process.env.AI_API_KEY;
+const ADMIN_ID = Number(process.env.ADMIN_ID);
 
-/* =======================
-   DATABASE HELPERS
-======================= */
+// ===============================
+// BOT INIT
+// ===============================
+const bot = new TelegramBot(BOT_TOKEN, { polling: true });
+const userState = {};
+
+// ===============================
+// DATABASE (credits)
+// ===============================
+const DB_FILE = './db.json';
 
 function loadDB() {
   if (!fs.existsSync(DB_FILE)) {
@@ -34,26 +51,10 @@ function getToday() {
   return new Date().toISOString().split('T')[0];
 }
 
-/* =======================
-   CONFIG
-======================= */
-
-const BOT_TOKEN = process.env.BOT_TOKEN;
-const AI_API_KEY = process.env.AI_API_KEY;
-const ADMIN_ID = Number(process.env.ADMIN_ID);
-
-/* =======================
-   BOT INIT
-======================= */
-
-const bot = new TelegramBot(BOT_TOKEN, { polling: true });
-const userState = {};
-
-/* =======================
-   PLANS & LIMITS
-======================= */
-
-const paidUsers = {}; // approved users only
+// ===============================
+// PLANS & LIMITS
+// ===============================
+const paidUsers = {}; // approved manually for now
 
 const isAdmin = id => Number(id) === ADMIN_ID;
 
@@ -63,10 +64,9 @@ const dailyLimit = id => {
   return 3;
 };
 
-/* =======================
-   CREDIT SYSTEM (ONLY DB)
-======================= */
-
+// ===============================
+// CREDIT SYSTEM (ONLY DB)
+// ===============================
 function getUserCredits(id) {
   const db = loadDB();
   const today = getToday();
@@ -78,7 +78,6 @@ function getUserCredits(id) {
     };
     saveDB(db);
   }
-
   return db.users[id].credits;
 }
 
@@ -90,10 +89,9 @@ function useCredit(id) {
   }
 }
 
-/* =======================
-   ALLOWED OPTIONS
-======================= */
-
+// ===============================
+// ALLOWED OPTIONS
+// ===============================
 const platformsAllowed = id => {
   if (isAdmin(id)) return ['telegram', 'whatsapp', 'instagram', 'twitter'];
   if (paidUsers[id]) return ['telegram', 'whatsapp', 'instagram'];
@@ -105,10 +103,9 @@ const typesAllowed = id => {
   return ['motivation', 'quote'];
 };
 
-/* =======================
-   /START
-======================= */
-
+// ===============================
+// /START
+// ===============================
 bot.onText(/\/start/, msg => {
   const id = msg.chat.id;
 
@@ -141,10 +138,9 @@ No fake motivation. No hype.
   );
 });
 
-/* =======================
-   CALLBACKS
-======================= */
-
+// ===============================
+// CALLBACKS
+// ===============================
 bot.on('callback_query', async q => {
   const id = q.message.chat.id;
   const data = q.data;
@@ -180,12 +176,7 @@ Reply *PAID* to upgrade.`,
   if (data === 'generate') {
     const creditsLeft = isAdmin(id) ? 9999 : getUserCredits(id);
 
-    console.log(
-      '[DEBUG]',
-      'User:', id,
-      'Admin:', isAdmin(id),
-      'Credits:', creditsLeft
-    );
+    console.log('[DEBUG]', id, 'Credits:', creditsLeft);
 
     if (!isAdmin(id) && creditsLeft <= 0) {
       return bot.sendMessage(
@@ -234,14 +225,19 @@ Reply *PAID* to upgrade.`,
     });
   }
 
-  // ----- LANGUAGE → PROMPT CONTINUES IN PART-2 -----
-
-if (data.startsWith('lang_')) {
+  // ===============================
+  // LANGUAGE → AI CALL
+  // ===============================
+  if (data.startsWith('lang_')) {
     const lang = data.replace('lang_', '');
     const { platform, type } = userState[id];
     userState[id] = {};
 
-    let prompt = `
+    // ==================================================
+    // 🔴🔴🔴 PROMPT START (PASTE YOUR PROMPT BELOW) 🔴🔴🔴
+    // ==================================================
+
+   let prompt = `
 You are NOT an assistant.
 You do NOT explain.
 You output ONLY final post-ready content.
@@ -306,6 +302,10 @@ Write 3 short hook-style thoughts.
 `;
     }
 
+    // ==================================================
+    // 🔴🔴🔴 PROMPT END 🔴🔴🔴
+    // ==================================================
+
     bot.sendMessage(id, 'Generating… ⏳');
 
     try {
@@ -322,10 +322,10 @@ Write 3 short hook-style thoughts.
         })
       });
 
-      const json = (await res.json);
+      const json = await res.json();
       const text = json.choices[0].message.content.trim();
 
-      // ✅ CREDIT CUT — ONLY HERE
+      // ✅ CREDIT CUT (ONLY HERE)
       if (!isAdmin(id)) {
         useCredit(id);
       }
@@ -412,6 +412,10 @@ Thank you for upgrading 🙌`
 );
   bot.sendMessage(msg.chat.id, `User ${uid} approved.`);
 });
+
+  
+
+
 
 
 
