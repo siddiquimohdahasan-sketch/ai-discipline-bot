@@ -358,9 +358,9 @@ Each hook should be standalone and scroll-stopping.
       const json = await res.json();
       const text = json.choices[0].message.content.trim();
 
-// ✅ CREDIT KAM KARO YAHAN
+// ✅ CREDIT KAM KARO (FINAL & SIMPLE)
 if (!isAdmin(id)) {
-  useCredit(id);
+  userCredits[id] = userCredits[id] - 1;
 }
 
 return bot.sendMessage(
@@ -444,6 +444,7 @@ Thank you for upgrading 🙌`
 );
   bot.sendMessage(msg.chat.id, `User ${uid} approved.`);
 });
+
 
 
 
