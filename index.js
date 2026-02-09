@@ -61,36 +61,32 @@ const userCredits = {};
 
 const isAdmin = id => id === ADMIN_ID;
 
-const dailyLimit = id => {
-  if (isAdmin(id)) return 9999;
-  if (paidUsers[id]) return paidUsers[id].plan === 'lifetime' ? 9999 : 20;
-  return 3;
-};
 function getToday() {
   return new Date().toISOString().split('T')[0];
 }
 
-function getUserCredits(id) {
+function canGenerate(id) {
+  if (isAdmin(id)) return true;
+  if (paidUsers[id]) return true;
+
   const db = loadDB();
   const today = getToday();
 
-  if (!db.users[id] || db.users[id].date !== today) {
-    db.users[id] = {
-      credits: dailyLimit(id),
-      date: today
-    };
-    saveDB(db);
+  if (!db.users[id]) {
+    db.users[id] = { count: 0, date: today };
   }
 
-  return db.users[id].credits;
-}
-
-function useCredit(id) {
-  const db = loadDB();
-  if (db.users[id]) {
-    db.users[id].credits -= 1;
-    saveDB(db);
+  if (db.users[id].date !== today) {
+    db.users[id] = { count: 0, date: today };
   }
+
+  if (db.users[id].count >= 3) {
+    return false;
+  }
+
+  db.users[id].count += 1;
+  saveDB(db);
+  return true;
 }
 
 const platformsAllowed = id => {
@@ -191,9 +187,7 @@ Reply *PAID* to upgrade.`,
   // ---------- GENERATE ----------
 if (data === 'generate') {
 
-  const creditsLeft = isAdmin(id) ? 9999 : getUserCredits(id);
-
-  if (creditsLeft <= 0 && !isAdmin(id)) {
+  if (!canGenerate(id)) {
     return bot.sendMessage(
       id,
       `🚫 *Daily limit reached*
@@ -203,11 +197,7 @@ Reply *PAID* to upgrade.`,
       { parse_mode: 'Markdown' }
     );
   }
- // ✅ CREDIT CUT YAHIN
-  if (!isAdmin(id)) {
-    useCredit(id);
-  }
-  
+
   const buttons = platformsAllowed(id).map(p => [
     { text: p.toUpperCase(), callback_data: `platform_${p}` }
   ]);
@@ -418,5 +408,6 @@ Thank you for upgrading 🙌`
 );
   bot.sendMessage(msg.chat.id, `User ${uid} approved.`);
 });
+
 
 
