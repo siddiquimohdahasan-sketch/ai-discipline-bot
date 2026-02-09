@@ -1,7 +1,6 @@
-// ===============================
-// KEEP-ALIVE SERVER (Railway/Render)
-// ===============================
+// --- Render keep-alive server (MUST be at top) ---
 const http = require('http');
+
 const PORT = process.env.PORT || 3000;
 
 http.createServer((req, res) => {
@@ -11,31 +10,12 @@ http.createServer((req, res) => {
   console.log(`🌐 HTTP server running on port ${PORT}`);
 });
 
-// ===============================
-// IMPORTS
-// ===============================
 const TelegramBot = require('node-telegram-bot-api');
 const fetch = require('node-fetch');
 const fs = require('fs');
-
-// ===============================
-// CONFIG
-// ===============================
-const BOT_TOKEN = process.env.BOT_TOKEN;
-const AI_API_KEY = process.env.AI_API_KEY;
-const ADMIN_ID = Number(process.env.ADMIN_ID);
-
-// ===============================
-// BOT INIT
-// ===============================
-const bot = new TelegramBot(BOT_TOKEN, { polling: true });
-const userState = {};
-
-// ===============================
-// DATABASE (credits)
-// ===============================
 const DB_FILE = './db.json';
 
+// load database
 function loadDB() {
   if (!fs.existsSync(DB_FILE)) {
     fs.writeFileSync(DB_FILE, JSON.stringify({ users: {} }, null, 2));
@@ -43,30 +23,53 @@ function loadDB() {
   return JSON.parse(fs.readFileSync(DB_FILE));
 }
 
+// save database
 function saveDB(db) {
   fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
 }
 
-function getToday() {
-  return new Date().toISOString().split('T')[0];
-}
+/* =======================
+   🔑 CONFIGURATION
+======================= */
 
-// ===============================
-// PLANS & LIMITS
-// ===============================
-const paidUsers = {}; // approved manually for now
+const BOT_TOKEN = process.env.BOT_TOKEN;
+const AI_API_KEY = process.env.AI_API_KEY;
 
-const isAdmin = id => Number(id) === ADMIN_ID;
+// 👑 ADMIN ID (numeric)
+const ADMIN_ID =Number(process.env.ADMIN_ID);
+
+/* =======================
+   USER PLANS (MANUAL)
+======================= */
+
+const paidUsers = {
+  // 987654321: { plan: 'monthly' },
+  // 112233445: { plan: 'lifetime' }
+};
+
+/* =======================
+   BOT INIT
+======================= */
+
+const bot = new TelegramBot(BOT_TOKEN, { polling: true });
+const userState = {};
+const userCredits = {};
+
+/* =======================
+   HELPERS
+======================= */
+
+const isAdmin = id => id === ADMIN_ID;
 
 const dailyLimit = id => {
   if (isAdmin(id)) return 9999;
   if (paidUsers[id]) return paidUsers[id].plan === 'lifetime' ? 9999 : 20;
   return 3;
 };
+function getToday() {
+  return new Date().toISOString().split('T')[0];
+}
 
-// ===============================
-// CREDIT SYSTEM (ONLY DB)
-// ===============================
 function getUserCredits(id) {
   const db = loadDB();
   const today = getToday();
@@ -78,6 +81,7 @@ function getUserCredits(id) {
     };
     saveDB(db);
   }
+
   return db.users[id].credits;
 }
 
@@ -89,12 +93,13 @@ function useCredit(id) {
   }
 }
 
-// ===============================
-// ALLOWED OPTIONS
-// ===============================
 const platformsAllowed = id => {
   if (isAdmin(id)) return ['telegram', 'whatsapp', 'instagram', 'twitter'];
-  if (paidUsers[id]) return ['telegram', 'whatsapp', 'instagram'];
+  if (paidUsers[id]) {
+    return paidUsers[id].plan === 'lifetime'
+      ? ['telegram', 'whatsapp', 'instagram', 'twitter']
+      : ['telegram', 'whatsapp', 'instagram'];
+  }
   return ['telegram'];
 };
 
@@ -103,14 +108,13 @@ const typesAllowed = id => {
   return ['motivation', 'quote'];
 };
 
-// ===============================
-// /START
-// ===============================
+/* =======================
+   START
+======================= */
+
 bot.onText(/\/start/, msg => {
   const id = msg.chat.id;
-
-  // ensure user exists in DB
-  getUserCredits(id);
+  userCredits[id] = dailyLimit(id);
 
   bot.sendMessage(
     id,
@@ -138,9 +142,10 @@ No fake motivation. No hype.
   );
 });
 
-// ===============================
-// CALLBACKS
-// ===============================
+/* =======================
+   CALLBACKS
+======================= */
+
 bot.on('callback_query', async q => {
   const id = q.message.chat.id;
   const data = q.data;
@@ -148,39 +153,67 @@ bot.on('callback_query', async q => {
   bot.answerCallbackQuery(q.id);
   userState[id] = userState[id] || {};
 
-  // LIMIT
+  // ---------- LIMIT INFO ----------
   if (data === 'limit') {
-    const left = isAdmin(id) ? 'Unlimited' : getUserCredits(id);
-    return bot.sendMessage(id, `📊 Remaining: ${left}`, { parse_mode: 'Markdown' });
-  }
-
-  // PAID
-  if (data === 'paid') {
     return bot.sendMessage(
       id,
-      `💼 Paid Plans\n\n₹299 / month\n₹999 Lifetime\n\nReply *PAID*`,
+      `ℹ️ *Plan info*
+
+You’re on the free plan.
+
+Upgrade to unlock:
+• Higher daily limits
+• Multiple platforms
+• Premium writing`,
       { parse_mode: 'Markdown' }
     );
   }
 
-  // GENERATE
-  if (data === 'generate') {
-    const credits = isAdmin(id) ? 9999 : getUserCredits(id);
+  // ---------- PAID PLANS ----------
+  if (data === 'paid') {
+    return bot.sendMessage(
+      id,
+      `💼 *Paid Plans*
 
-    if (!isAdmin(id) && credits <= 0) {
-      return bot.sendMessage(id, '🚫 Daily limit reached', { parse_mode: 'Markdown' });
-    }
+₹299 / month  
+• 20 posts/day  
+• Premium writing  
 
-    const buttons = platformsAllowed(id).map(p => [
-      { text: p.toUpperCase(), callback_data: `platform_${p}` }
-    ]);
+₹999 Lifetime  
+• Unlimited posts  
+• All platforms
 
-    return bot.sendMessage(id, 'Choose platform:', {
-      reply_markup: { inline_keyboard: buttons }
-    });
+Reply *PAID* to upgrade.`,
+      { parse_mode: 'Markdown' }
+    );
   }
 
-  // PLATFORM
+  // ---------- GENERATE ----------
+if (data === 'generate') {
+
+  const creditsLeft = isAdmin(id) ? 9999 : getUserCredits(id);
+
+  if (creditsLeft <= 0 && !isAdmin(id)) {
+    return bot.sendMessage(
+      id,
+      `🚫 *Daily limit reached*
+
+Free users can generate only 3 posts per day.
+Reply *PAID* to upgrade.`,
+      { parse_mode: 'Markdown' }
+    );
+  }
+
+  const buttons = platformsAllowed(id).map(p => [
+    { text: p.toUpperCase(), callback_data: `platform_${p}` }
+  ]);
+
+  return bot.sendMessage(id, 'Choose platform:', {
+    reply_markup: { inline_keyboard: buttons }
+  });
+}
+
+  // ---------- PLATFORM ----------
   if (data.startsWith('platform_')) {
     userState[id].platform = data.replace('platform_', '');
 
@@ -193,7 +226,7 @@ bot.on('callback_query', async q => {
     });
   }
 
-  // TYPE
+  // ---------- TYPE ----------
   if (data.startsWith('type_')) {
     userState[id].type = data.replace('type_', '');
 
@@ -207,41 +240,15 @@ bot.on('callback_query', async q => {
     });
   }
 
-  // ===============================
-// LANGUAGE → AI CALL
-// ===============================
-if (data.startsWith('lang_')) {
+  // ---------- LANGUAGE → AI CALL ----------
+  if (data.startsWith('lang_')) {
+    const lang = data.replace('lang_', '');
+    const { platform, type } = userState[id];
+    userState[id] = {};
 
-  const langKey = data.replace('lang_', ''); // indian | global
+    if (!isAdmin(id)) useCredit(id);
 
-  const { platform, type } = userState[id];
-  userState[id] = {};
-
-  const language =
-    langKey === 'indian' ? 'Indian English' : 'Global English';
-
-  // ---- CREDIT CHECK (FINAL) ----
-  if (!isAdmin(id)) {
-    const creditsLeft = getUserCredits(id);
-    if (creditsLeft <= 0) {
-      return bot.sendMessage(
-        id,
-        `🚫 *Daily limit reached*
-
-Upgrade to continue.`,
-        { parse_mode: 'Markdown' }
-      );
-    }
-    useCredit(id);
-  }
-`;
-
-
-    // ==================================================
-    // 🔴🔴🔴 PROMPT START (PASTE YOUR PROMPT BELOW) 🔴🔴🔴
-    // ==================================================
-
-   let prompt = `
+    let prompt = `
 You are NOT an assistant.
 You do NOT explain.
 You output ONLY final post-ready content.
@@ -269,7 +276,7 @@ Guidelines:
 • Maximum 3 short lines (except hooks)
 
 Platform: ${platform}
-Language: ${language}
+Language: ${lang === 'indian' ? 'Indian English' : 'Global English'}
 Output format (STRICT):
 • Write exactly 3 lines.
 • Each line must be one short sentence.
@@ -286,7 +293,7 @@ Do not merge lines.
 Do not use quotation marks. Never wrap output in quotes.
 `;
 
-  if (type === 'motivation') {
+    if (type === 'motivation') {
       prompt += `
 Write blunt, practical motivation.
 No fluff. No inspiration talk.
@@ -303,16 +310,15 @@ Then add 1–2 supporting lines.
     if (type === 'hooks') {
       prompt += `
 Write 3 short hook-style thoughts.
+Each hook must present a contrast, tension, or uncomfortable truth.
+No motivational advice.
+Each hook should be standalone and scroll-stopping.
 `;
     }
 
-    // ==================================================
-    // 🔴🔴🔴 PROMPT END 🔴🔴🔴
-    // ==================================================
+    bot.sendMessage(id, 'Generating… ⏳');
 
-bot.sendMessage(id, 'Generating… ⏳');
-
-  try {
+    try {
       const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -329,22 +335,24 @@ bot.sendMessage(id, 'Generating… ⏳');
       const json = await res.json();
       const text = json.choices[0].message.content.trim();
 
-      if (!isAdmin(id)) useCredit(id);
+// ✅ CREDIT KAM KARO YAHAN
+if (!isAdmin(id)) {
+  useCredit(id);
+}
 
-      return bot.sendMessage(
-        id,
-        `✍️ *Content Ready*\n\n${text}`,
-        { parse_mode: 'Markdown' }
-      );
-
+return bot.sendMessage(
+  id,
+  `✍️ *Content Ready*\n\n${text}`,
+  { parse_mode: 'Markdown' }
+);
     } catch (e) {
       console.error(e);
-      return bot.sendMessage(id, 'AI busy');
+      return bot.sendMessage(id, 'AI busy. Try again later.');
     }
   }
 });
-console.log('✅ AI Discipline & Skills Bot Running...');
 
+console.log('✅ AI Discipline & Skills Bot Running...');
 // ===== PAYMENT PROOF FLOW =====
 
 // user sends PAID
@@ -412,36 +420,3 @@ Thank you for upgrading 🙌`
 );
   bot.sendMessage(msg.chat.id, `User ${uid} approved.`);
 });
-
-  
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
