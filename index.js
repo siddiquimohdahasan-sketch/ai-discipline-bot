@@ -203,7 +203,11 @@ Reply *PAID* to upgrade.`,
       { parse_mode: 'Markdown' }
     );
   }
-
+ // ✅ CREDIT CUT YAHIN
+  if (!isAdmin(id)) {
+    useCredit(id);
+  }
+  
   const buttons = platformsAllowed(id).map(p => [
     { text: p.toUpperCase(), callback_data: `platform_${p}` }
   ]);
@@ -334,11 +338,6 @@ Each hook should be standalone and scroll-stopping.
       const json = await res.json();
       const text = json.choices[0].message.content.trim();
 
-// ✅ CREDIT KAM KARO YAHAN
-if (!isAdmin(id)) {
-  useCredit(id);
-}
-
 return bot.sendMessage(
   id,
   `✍️ *Content Ready*\n\n${text}`,
@@ -419,4 +418,5 @@ Thank you for upgrading 🙌`
 );
   bot.sendMessage(msg.chat.id, `User ${uid} approved.`);
 });
+
 
