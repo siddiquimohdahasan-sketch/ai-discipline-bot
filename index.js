@@ -246,7 +246,6 @@ Reply *PAID* to upgrade.`,
     const { platform, type } = userState[id];
     userState[id] = {};
 
-    if (!isAdmin(id)) useCredit(id);
 
     let prompt = `
 You are NOT an assistant.
@@ -420,3 +419,4 @@ Thank you for upgrading 🙌`
 );
   bot.sendMessage(msg.chat.id, `User ${uid} approved.`);
 });
+
