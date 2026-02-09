@@ -65,21 +65,30 @@ function getToday() {
   return new Date().toISOString().split('T')[0];
 }
 
-function canGenerate(id) {
+/**
+ * CREDIT RULE:
+ * - Free user: 3 successful generations / day
+ * - Paid/Admin: unlimited
+ * - Credit CUT sirf tab hoga jab AI actually generate kare
+ */
+
+function canGenerate(id, consume = false) {
   if (isAdmin(id)) return true;
   if (paidUsers[id]) return true;
 
   const db = loadDB();
   const today = getToday();
 
-  if (!db.users[id]) {
+  if (!db.users[id] || db.users[id].date !== today) {
     db.users[id] = { count: 0, date: today };
   }
 
-  if (db.users[id].date !== today) {
-    db.users[id] = { count: 0, date: today };
+  if (!consume) {
+    // Sirf check
+    return db.users[id].count < 3;
   }
 
+  // Consume credit
   if (db.users[id].count >= 3) {
     return false;
   }
@@ -408,6 +417,7 @@ Thank you for upgrading 🙌`
 );
   bot.sendMessage(msg.chat.id, `User ${uid} approved.`);
 });
+
 
 
 
