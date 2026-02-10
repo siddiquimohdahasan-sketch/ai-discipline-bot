@@ -74,6 +74,7 @@ function getUserCredits(id) {
   const db = loadDB();
   const today = getToday();
 
+  // user pehli baar aaya
   if (!db.users[id]) {
     db.users[id] = {
       credits: dailyLimit(id),
@@ -82,6 +83,7 @@ function getUserCredits(id) {
     saveDB(db);
   }
 
+  // naya din shuru hua
   if (db.users[id].date !== today) {
     db.users[id].credits = dailyLimit(id);
     db.users[id].date = today;
@@ -90,6 +92,15 @@ function getUserCredits(id) {
 
   return db.users[id].credits;
 }
+
+function useCredit(id) {
+  const db = loadDB();
+  if (db.users[id]) {
+    db.users[id].credits -= 1;
+    saveDB(db);
+  }
+}
+
 const platformsAllowed = id => {
   if (isAdmin(id)) return ['telegram', 'whatsapp', 'instagram', 'twitter'];
   if (paidUsers[id]) {
@@ -104,7 +115,6 @@ const typesAllowed = id => {
   if (isAdmin(id) || paidUsers[id]) return ['motivation', 'quote', 'hooks'];
   return ['motivation', 'quote'];
 };
-
 /* =======================
    START
 ======================= */
@@ -415,6 +425,7 @@ Thank you for upgrading 🙌`
 );
   bot.sendMessage(msg.chat.id, `User ${uid} approved.`);
 });
+
 
 
 
