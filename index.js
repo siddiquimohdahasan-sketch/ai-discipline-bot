@@ -7,7 +7,7 @@ const AI_API_KEY = process.env.AI_API_KEY;
 const ADMIN_ID = Number(process.env.ADMIN_ID);
 const DB_FILE = './db.json';
 
-/* ========= DB ========= */
+/* ================= DB ================= */
 
 function loadDB() {
   if (!fs.existsSync(DB_FILE)) {
@@ -26,50 +26,40 @@ function today() {
 
 function initUser(db, id) {
   if (!db.users[id]) {
-    db.users[id] = {
-      plan: 'free', // free | monthly | lifetime
-      used: 0,
-      date: today()
-    };
+    db.users[id] = { plan: 'free', used: 0, date: today() };
   }
-
   if (db.users[id].date !== today()) {
     db.users[id].date = today();
     db.users[id].used = 0;
   }
 }
 
-/* ========= RULES ========= */
+const isAdmin = id => id === ADMIN_ID;
 
-function isAdmin(id) {
-  return id === ADMIN_ID;
-}
+/* ================= LIMITS ================= */
 
 function dailyLimit(user, id) {
-  if (isAdmin(id)) return Infinity;
-  if (user.plan === 'lifetime') return Infinity;
+  if (isAdmin(id)) return 999999;
+  if (user.plan === 'lifetime') return 999999;
   if (user.plan === 'monthly') return 20;
   return 3;
 }
 
 function allowedPlatforms(user, id) {
-  if (isAdmin(id) || user.plan === 'lifetime') {
+  if (isAdmin(id) || user.plan === 'lifetime')
     return ['telegram', 'whatsapp', 'instagram', 'twitter'];
-  }
-  if (user.plan === 'monthly') {
+  if (user.plan === 'monthly')
     return ['telegram', 'whatsapp', 'instagram'];
-  }
   return ['telegram'];
 }
 
 function allowedTypes(user, id) {
-  if (isAdmin(id) || user.plan !== 'free') {
+  if (isAdmin(id) || user.plan !== 'free')
     return ['motivation', 'quote', 'hooks'];
-  }
   return ['motivation', 'quote'];
 }
 
-/* ========= BOT ========= */
+/* ================= BOT ================= */
 
 const bot = new TelegramBot(BOT_TOKEN, { polling: true });
 const userState = {};
@@ -86,9 +76,7 @@ bot.onText(/\/start/, msg => {
 
 🆓 Free: 3 posts/day  
 💰 Monthly: 20 posts/day  
-💎 Lifetime: Unlimited
-
-👇 Start generating`,
+💎 Lifetime: Unlimited`,
     {
       parse_mode: 'Markdown',
       reply_markup: {
@@ -100,6 +88,8 @@ bot.onText(/\/start/, msg => {
     }
   );
 });
+
+/* ================= CALLBACK ================= */
 
 bot.on('callback_query', async q => {
   const id = q.message.chat.id;
@@ -114,23 +104,17 @@ bot.on('callback_query', async q => {
   if (data === 'paid') {
     return bot.sendMessage(
       id,
-`💰 *Paid Plans*
-
-₹299 – Monthly  
-• 20 posts/day  
-• Telegram, WhatsApp, Instagram  
-
-₹999 – Lifetime  
-• Unlimited posts  
-• All platforms  
+`₹299 – Monthly (20/day, no Twitter)
+₹999 – Lifetime (Unlimited, all platforms)
 
 Reply *PAID* to upgrade.`,
       { parse_mode: 'Markdown' }
     );
   }
 
-  /* ----- GENERATE ----- */
+  /* ----- GENERATE (🔥 CREDIT CUT HERE 🔥) ----- */
   if (data === 'generate') {
+
     if (user.used >= dailyLimit(user, id)) {
       return bot.sendMessage(
         id,
@@ -139,6 +123,12 @@ Reply *PAID* to upgrade.`,
 Upgrade to continue.`,
         { parse_mode: 'Markdown' }
       );
+    }
+
+    // 🔒 CUT CREDIT IMMEDIATELY
+    if (!isAdmin(id)) {
+      user.used += 1;
+      saveDB(db);
     }
 
     const buttons = allowedPlatforms(user, id).map(p => [
@@ -166,7 +156,6 @@ Upgrade to continue.`,
   /* ----- TYPE ----- */
   if (data.startsWith('type_')) {
     userState[id].type = data.replace('type_', '');
-
     return bot.sendMessage(id, 'Choose language:', {
       reply_markup: {
         inline_keyboard: [
@@ -183,33 +172,16 @@ Upgrade to continue.`,
     const { platform, type } = userState[id];
     userState[id] = {};
 
-    bot.sendMessage(id, 'Generating… ⏳');
-
     const prompt = `
 You are NOT an assistant.
-You do NOT explain.
 You output ONLY final post-ready content.
 
-Topic scope (STRICT):
-discipline, effort, consistency, skills, self-improvement.
-
-Money is allowed ONLY as an outcome of discipline and skills.
-Do NOT promise money.
-Do NOT mention income numbers.
-Do NOT sell anything.
-
-Writing style:
-• Short, sharp sentences
-• Truth-based, not inspirational
-• Slightly bold, realistic tone
-
+Topic: discipline, consistency, skills.
 Platform: ${platform}
 Type: ${type}
 Language: ${lang === 'indian' ? 'Indian English' : 'Global English'}
 
-Output:
-Exactly 3 lines.
-Stop after third line.
+Exactly 3 lines. Stop after third line.
 `;
 
     try {
@@ -227,32 +199,23 @@ Stop after third line.
       });
 
       const json = await res.json();
-      const text = json.choices[0].message.content.trim();
+      return bot.sendMessage(id, json.choices[0].message.content.trim());
 
+    } catch (e) {
+      // 🔁 ROLLBACK CREDIT IF AI FAILS
       if (!isAdmin(id)) {
-        user.used += 1;
+        user.used -= 1;
         saveDB(db);
       }
-
-      return bot.sendMessage(
-        id,
-        `✍️ *Content Ready*\n\n${text}`,
-        { parse_mode: 'Markdown' }
-      );
-    } catch (e) {
       return bot.sendMessage(id, 'AI busy. Try later.');
     }
   }
 });
 
-/* ========= PAYMENT ========= */
+/* ================= PAYMENT ================= */
 
 bot.onText(/PAID/i, msg => {
-  bot.sendMessage(
-    msg.chat.id,
-`📸 Send payment screenshot.
-Admin will verify & activate.`
-  );
+  bot.sendMessage(msg.chat.id, 'Send payment proof.');
 });
 
 bot.onText(/\/approve (\d+) (monthly|lifetime)/, msg => {
@@ -266,8 +229,7 @@ bot.onText(/\/approve (\d+) (monthly|lifetime)/, msg => {
   db.users[uid].plan = plan;
   saveDB(db);
 
-  bot.sendMessage(uid, `✅ ${plan.toUpperCase()} access activated.`);
-  bot.sendMessage(ADMIN_ID, `User ${uid} approved (${plan}).`);
+  bot.sendMessage(uid, `✅ ${plan.toUpperCase()} activated`);
 });
 
-console.log('✅ Bot running with strict control');
+console.log('✅ BOT RUNNING – FREE USERS LOCKED');
