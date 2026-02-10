@@ -100,7 +100,18 @@ bot.onText(/\/start/, msg => {
 bot.on('callback_query', async q => {
   const id = q.message.chat.id;
   const data = q.data;
+
   bot.answerCallbackQuery(q.id);
+  userState[id] = userState[id] || {};
+
+  // 🔒 BUTTON KO TURANT DEAD KAR DO (ANTI-SPAM)
+  bot.editMessageReplyMarkup(
+    { inline_keyboard: [] },
+    {
+      chat_id: q.message.chat.id,
+      message_id: q.message.message_id
+    }
+  );
 
   const db = loadDB();
   initUser(db, id);
@@ -236,3 +247,4 @@ bot.onText(/\/approve (\d+) (monthly|lifetime)/, msg => {
 });
 
 console.log('✅ BOT RUNNING – HARD LOCK ENABLED');
+
