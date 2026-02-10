@@ -1,14 +1,10 @@
-// --- Render / Railway keep-alive server (MUST be at top) ---
+// --- Keep alive ---
 const http = require('http');
-
 const PORT = process.env.PORT || 3000;
-
 http.createServer((req, res) => {
-  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.writeHead(200);
   res.end('OK');
-}).listen(PORT, () => {
-  console.log(`🌐 HTTP server running on port ${PORT}`);
-});
+}).listen(PORT);
 
 // =======================
 // DEPENDENCIES
@@ -24,81 +20,31 @@ const AI_API_KEY = process.env.AI_API_KEY;
 const ADMIN_ID = Number(process.env.ADMIN_ID);
 
 // =======================
-// IN-MEMORY DB (Railway Free Safe)
-// =======================
-let memoryDB = {
-  users: {}
-};
-
-function loadDB() {
-  return memoryDB;
-}
-
-function saveDB(db) {
-  memoryDB = db;
-}
-
-// =======================
-// PAID USERS (MANUAL)
-// =======================
-const paidUsers = {
-  // 123456789: { plan: 'monthly' },
-  // 987654321: { plan: 'lifetime' }
-};
-
-// =======================
 // BOT INIT
 // =======================
 const bot = new TelegramBot(BOT_TOKEN, { polling: true });
 const userState = {};
 
 // =======================
-// HELPERS
+// DAILY LIMITER (REAL FIX)
 // =======================
-const isAdmin = id => id === ADMIN_ID;
+const dailyLimiter = new Map();
 
-function getToday() {
+function today() {
   return new Date().toISOString().split('T')[0];
 }
 
-// Free: 3 successful generations/day
-// Paid/Admin: unlimited
-function canGenerate(id, consume = false) {
-  if (isAdmin(id)) return true;
-  if (paidUsers[id]) return true;
+function canGenerate(id) {
+  if (id === ADMIN_ID) return true;
 
-  const db = loadDB();
-  const today = getToday();
+  const key = `${id}_${today()}`;
+  const used = dailyLimiter.get(key) || 0;
 
-  if (!db.users[id] || db.users[id].date !== today) {
-    db.users[id] = { count: 0, date: today };
-  }
+  if (used >= 3) return false;
 
-  if (!consume) {
-    return db.users[id].count < 3;
-  }
-
-  if (db.users[id].count >= 3) return false;
-
-  db.users[id].count += 1;
-  saveDB(db);
+  dailyLimiter.set(key, used + 1);
   return true;
 }
-
-const platformsAllowed = id => {
-  if (isAdmin(id)) return ['telegram', 'whatsapp', 'instagram', 'twitter'];
-  if (paidUsers[id]) {
-    return paidUsers[id].plan === 'lifetime'
-      ? ['telegram', 'whatsapp', 'instagram', 'twitter']
-      : ['telegram', 'whatsapp', 'instagram'];
-  }
-  return ['telegram'];
-};
-
-const typesAllowed = id => {
-  if (isAdmin(id) || paidUsers[id]) return ['motivation', 'quote', 'hooks'];
-  return ['motivation', 'quote'];
-};
 
 // =======================
 // START
@@ -108,24 +54,18 @@ bot.onText(/\/start/, msg => {
 
   bot.sendMessage(
     id,
-    `👋 *AI Discipline & Skills Bot*
+`👋 *AI Discipline & Skills Bot*
 
 Clean, realistic content.
 No fake motivation. No hype.
 
 🆓 Free: 3 posts/day  
-💰 Paid: Higher limits + premium tone
-
-👇 Start generating`,
+💰 Paid: Higher limits + premium tone`,
     {
       parse_mode: 'Markdown',
       reply_markup: {
         inline_keyboard: [
-          [{ text: '✍️ Generate Content', callback_data: 'generate' }],
-          [
-            { text: '📊 My Limit', callback_data: 'limit' },
-            { text: '💰 Paid Plan', callback_data: 'paid' }
-          ]
+          [{ text: '✍️ Generate Content', callback_data: 'generate' }]
         ]
       }
     }
@@ -138,44 +78,9 @@ No fake motivation. No hype.
 bot.on('callback_query', async q => {
   const id = q.message.chat.id;
   const data = q.data;
-
   bot.answerCallbackQuery(q.id);
+
   userState[id] = userState[id] || {};
-
-  // ----- LIMIT INFO -----
-  if (data === 'limit') {
-    return bot.sendMessage(
-      id,
-      `ℹ️ *Plan info*
-
-You’re on the free plan.
-
-Upgrade to unlock:
-• Higher daily limits
-• Multiple platforms
-• Premium writing`,
-      { parse_mode: 'Markdown' }
-    );
-  }
-
-  // ----- PAID -----
-  if (data === 'paid') {
-    return bot.sendMessage(
-      id,
-      `💼 *Paid Plans*
-
-₹299 / month  
-• 20 posts/day  
-• Premium writing  
-
-₹999 Lifetime  
-• Unlimited posts  
-• All platforms
-
-Reply *PAID* to upgrade.`,
-      { parse_mode: 'Markdown' }
-    );
-  }
 
   // ----- GENERATE -----
   if (data === 'generate') {
@@ -184,38 +89,36 @@ Reply *PAID* to upgrade.`,
         id,
         `🚫 *Daily limit reached*
 
-Free users can generate only 3 posts per day.
-Reply *PAID* to upgrade.`,
+Free users can generate only 3 posts per day.`,
         { parse_mode: 'Markdown' }
       );
     }
 
-    const buttons = platformsAllowed(id).map(p => [
-      { text: p.toUpperCase(), callback_data: `platform_${p}` }
-    ]);
-
     return bot.sendMessage(id, 'Choose platform:', {
-      reply_markup: { inline_keyboard: buttons }
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: 'TELEGRAM', callback_data: 'platform_telegram' }]
+        ]
+      }
     });
   }
 
   // ----- PLATFORM -----
   if (data.startsWith('platform_')) {
     userState[id].platform = data.replace('platform_', '');
-
-    const buttons = typesAllowed(id).map(t => [
-      { text: t.toUpperCase(), callback_data: `type_${t}` }
-    ]);
-
     return bot.sendMessage(id, 'Choose content type:', {
-      reply_markup: { inline_keyboard: buttons }
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: 'MOTIVATION', callback_data: 'type_motivation' }],
+          [{ text: 'QUOTE', callback_data: 'type_quote' }]
+        ]
+      }
     });
   }
 
   // ----- TYPE -----
   if (data.startsWith('type_')) {
     userState[id].type = data.replace('type_', '');
-
     return bot.sendMessage(id, 'Choose language:', {
       reply_markup: {
         inline_keyboard: [
@@ -231,15 +134,6 @@ Reply *PAID* to upgrade.`,
     const lang = data.replace('lang_', '');
     const { platform, type } = userState[id];
     userState[id] = {};
-
-    // 🔒 consume credit ONLY now (successful generation path)
-    if (!canGenerate(id, true)) {
-      return bot.sendMessage(
-        id,
-        `🚫 *Daily limit reached*`,
-        { parse_mode: 'Markdown' }
-      );
-    }
 
     let prompt = `
 You are NOT an assistant.
@@ -287,26 +181,11 @@ Do not use quotation marks. Never wrap output in quotes.
 `;
 
     if (type === 'motivation') {
-      prompt += `
-Write blunt, practical motivation.
-No fluff. No inspiration talk.
-`;
+      prompt += `\nWrite blunt, practical motivation.\nNo fluff. No inspiration talk.\n`;
     }
 
     if (type === 'quote') {
-      prompt += `
-Write ONE original quote.
-Then add 1–2 supporting lines.
-`;
-    }
-
-    if (type === 'hooks') {
-      prompt += `
-Write 3 short hook-style thoughts.
-Each hook must present a contrast, tension, or uncomfortable truth.
-No motivational advice.
-Each hook should be standalone and scroll-stopping.
-`;
+      prompt += `\nWrite ONE original quote.\nThen add 1–2 supporting lines.\n`;
     }
 
     bot.sendMessage(id, 'Generating… ⏳');
@@ -340,7 +219,7 @@ Each hook should be standalone and scroll-stopping.
   }
 });
 
-console.log('✅ AI Discipline & Skills Bot Running...');
+console.log('✅ Bot running (Railway safe)');
 
 // =======================
 // PAYMENT FLOW (UNCHANGED)
@@ -391,3 +270,4 @@ Thank you for upgrading 🙌`,
 
   bot.sendMessage(msg.chat.id, `User ${uid} approved.`);
 });
+
