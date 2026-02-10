@@ -257,6 +257,19 @@ Reply *PAID* to upgrade.`,
   }
 
   // ---------- LANGUAGE → AI CALL ----------
+  const creditsLeft = isAdmin(id) ? 9999 : getUserCredits(id);
+
+if (creditsLeft <= 0 && !isAdmin(id)) {
+  return bot.sendMessage(
+    id,
+    `🚫 *Daily limit reached*
+
+Free users can generate only 3 posts per day.
+Reply *PAID* to upgrade.`,
+    { parse_mode: 'Markdown' }
+  );
+}
+
   if (data.startsWith('lang_')) {
     const lang = data.replace('lang_', '');
     const { platform, type } = userState[id];
@@ -434,6 +447,7 @@ Thank you for upgrading 🙌`
 );
   bot.sendMessage(msg.chat.id, `User ${uid} approved.`);
 });
+
 
 
 
