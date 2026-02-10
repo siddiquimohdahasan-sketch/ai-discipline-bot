@@ -172,18 +172,32 @@ Upgrade to continue.`,
     const { platform, type } = userState[id];
     userState[id] = {};
 
-    const prompt = `
+   const prompt = `
 You are NOT an assistant.
+You do NOT explain.
 You output ONLY final post-ready content.
 
-Topic: discipline, consistency, skills.
+Topic scope (STRICT):
+discipline, effort, consistency, skills, self-improvement.
+
+Money is allowed ONLY as an outcome of discipline and skills.
+Do NOT promise money.
+Do NOT mention income numbers.
+Do NOT sell anything.
+
+Writing style:
+• Short, sharp sentences
+• Truth-based, not inspirational
+• Slightly bold, realistic tone
+
 Platform: ${platform}
 Type: ${type}
 Language: ${lang === 'indian' ? 'Indian English' : 'Global English'}
 
-Exactly 3 lines. Stop after third line.
+Output:
+Exactly 3 lines.
+Stop after third line.
 `;
-
     try {
       const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
@@ -233,3 +247,4 @@ bot.onText(/\/approve (\d+) (monthly|lifetime)/, msg => {
 });
 
 console.log('✅ BOT RUNNING – FREE USERS LOCKED');
+
