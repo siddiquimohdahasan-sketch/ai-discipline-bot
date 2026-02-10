@@ -26,8 +26,14 @@ function today() {
 
 function initUser(db, id) {
   if (!db.users[id]) {
-    db.users[id] = { plan: 'free', used: 0, date: today() };
+    db.users[id] = {
+      plan: 'free',      // free | monthly | lifetime
+      used: 0,
+      date: today(),
+      inProgress: false // 🔒 HARD LOCK
+    };
   }
+
   if (db.users[id].date !== today()) {
     db.users[id].date = today();
     db.users[id].used = 0;
@@ -36,11 +42,11 @@ function initUser(db, id) {
 
 const isAdmin = id => id === ADMIN_ID;
 
-/* ================= LIMITS ================= */
+/* ================= RULES ================= */
 
 function dailyLimit(user, id) {
-  if (isAdmin(id)) return 999999;
-  if (user.plan === 'lifetime') return 999999;
+  if (isAdmin(id)) return Infinity;
+  if (user.plan === 'lifetime') return Infinity;
   if (user.plan === 'monthly') return 20;
   return 3;
 }
@@ -74,8 +80,8 @@ bot.onText(/\/start/, msg => {
     id,
 `👋 *AI Discipline & Skills Bot*
 
-🆓 Free: 3 posts/day  
-💰 Monthly: 20 posts/day  
+🆓 Free: 3/day  
+💰 Monthly: 20/day  
 💎 Lifetime: Unlimited`,
     {
       parse_mode: 'Markdown',
@@ -100,36 +106,28 @@ bot.on('callback_query', async q => {
   initUser(db, id);
   const user = db.users[id];
 
-  /* ----- PAID INFO ----- */
-  if (data === 'paid') {
-    return bot.sendMessage(
-      id,
-`₹299 – Monthly (20/day, no Twitter)
-₹999 – Lifetime (Unlimited, all platforms)
-
-Reply *PAID* to upgrade.`,
-      { parse_mode: 'Markdown' }
-    );
-  }
-
-  /* ----- GENERATE (🔥 CREDIT CUT HERE 🔥) ----- */
+  /* ----- GENERATE ----- */
   if (data === 'generate') {
+
+    // 🔒 HARD LOCK CHECK
+    if (user.inProgress) {
+      return bot.sendMessage(
+        id,
+        '⏳ Already generating. Please wait.'
+      );
+    }
 
     if (user.used >= dailyLimit(user, id)) {
       return bot.sendMessage(
         id,
-`🚫 *Daily limit reached*
-
-Upgrade to continue.`,
-        { parse_mode: 'Markdown' }
+        '🚫 Daily limit reached. Upgrade to continue.'
       );
     }
 
-    // 🔒 CUT CREDIT IMMEDIATELY
-    if (!isAdmin(id)) {
-      user.used += 1;
-      saveDB(db);
-    }
+    // 🔐 LOCK + CREDIT CUT
+    user.inProgress = true;
+    if (!isAdmin(id)) user.used += 1;
+    saveDB(db);
 
     const buttons = allowedPlatforms(user, id).map(p => [
       { text: p.toUpperCase(), callback_data: `platform_${p}` }
@@ -172,75 +170,18 @@ Upgrade to continue.`,
     const { platform, type } = userState[id];
     userState[id] = {};
 
-    let prompt = `
+    const prompt = `
 You are NOT an assistant.
-You do NOT explain.
 You output ONLY final post-ready content.
 
-Topic scope (STRICT):
-discipline, effort, consistency, skills, self-improvement.
-
-Money is allowed ONLY as an outcome of discipline and skills.
-Do NOT promise money.
-Do NOT mention income numbers.
-Do NOT sell anything.
-
-Writing style:
-• Short, sharp sentences
-• Truth-based, not inspirational
-• Slightly bold, realistic tone
-• Human, modern voice
-
-Guidelines:
-• Write like someone sharing a hard-earned realization
-• No teaching, no advising, no explaining
-• Avoid overused motivational phrases
-• Avoid poetic or textbook-style language
-• If a line sounds like advice, rewrite it as an observation
-• Maximum 3 short lines (except hooks)
-
+Topic: discipline, consistency, skills.
 Platform: ${platform}
+Type: ${type}
 Language: ${lang === 'indian' ? 'Indian English' : 'Global English'}
-Output format (STRICT):
-• Write exactly 3 lines.
-• Each line must be one short sentence.
-• No numbering.
-• No bullet points.
-• No extra lines or spacing.
-• Stop after the third line.
-Stop after the third line.
 
-Formatting rules:
-Each line must be on a new line.
-Use line breaks between lines.
-Do not merge lines.
-Do not use quotation marks. Never wrap output in quotes.
+Exactly 3 lines. Stop after third line.
 `;
 
-    if (type === 'motivation') {
-      prompt += `
-Write blunt, practical motivation.
-No fluff. No inspiration talk.
-`;
-    }
-
-    if (type === 'quote') {
-      prompt += `
-Write ONE original quote.
-Then add 1–2 supporting lines.
-`;
-    }
-
-    if (type === 'hooks') {
-      prompt += `
-Write 3 short hook-style thoughts.
-Each hook must present a contrast, tension, or uncomfortable truth.
-No motivational advice.
-Each hook should be standalone and scroll-stopping.
-`;
-    }
-
-    bot.sendMessage(id, 'Generating… ⏳');
     try {
       const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
@@ -259,12 +200,17 @@ Each hook should be standalone and scroll-stopping.
       return bot.sendMessage(id, json.choices[0].message.content.trim());
 
     } catch (e) {
-      // 🔁 ROLLBACK CREDIT IF AI FAILS
-      if (!isAdmin(id)) {
-        user.used -= 1;
-        saveDB(db);
-      }
+      // ❗ rollback credit on fail
+      if (!isAdmin(id)) user.used -= 1;
       return bot.sendMessage(id, 'AI busy. Try later.');
+
+    } finally {
+      // 🔓 UNLOCK ALWAYS
+      const db2 = loadDB();
+      if (db2.users[id]) {
+        db2.users[id].inProgress = false;
+        saveDB(db2);
+      }
     }
   }
 });
@@ -289,6 +235,4 @@ bot.onText(/\/approve (\d+) (monthly|lifetime)/, msg => {
   bot.sendMessage(uid, `✅ ${plan.toUpperCase()} activated`);
 });
 
-console.log('✅ BOT RUNNING – FREE USERS LOCKED');
-
-
+console.log('✅ BOT RUNNING – HARD LOCK ENABLED');
