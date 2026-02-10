@@ -5,12 +5,9 @@ const fs = require('fs');
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const AI_API_KEY = process.env.AI_API_KEY;
 const ADMIN_ID = Number(process.env.ADMIN_ID);
-
 const DB_FILE = './db.json';
 
-/* =====================
-   DB HELPERS
-===================== */
+/* ========= DB ========= */
 
 function loadDB() {
   if (!fs.existsSync(DB_FILE)) {
@@ -27,16 +24,12 @@ function today() {
   return new Date().toISOString().split('T')[0];
 }
 
-/* =====================
-   USER INIT
-===================== */
-
 function initUser(db, id) {
   if (!db.users[id]) {
     db.users[id] = {
-      plan: 'free', // free | paid
-      date: today(),
-      used: 0
+      plan: 'free', // free | monthly | lifetime
+      used: 0,
+      date: today()
     };
   }
 
@@ -46,16 +39,44 @@ function initUser(db, id) {
   }
 }
 
-/* =====================
-   BOT INIT
-===================== */
+/* ========= RULES ========= */
+
+function isAdmin(id) {
+  return id === ADMIN_ID;
+}
+
+function dailyLimit(user, id) {
+  if (isAdmin(id)) return Infinity;
+  if (user.plan === 'lifetime') return Infinity;
+  if (user.plan === 'monthly') return 20;
+  return 3;
+}
+
+function allowedPlatforms(user, id) {
+  if (isAdmin(id) || user.plan === 'lifetime') {
+    return ['telegram', 'whatsapp', 'instagram', 'twitter'];
+  }
+  if (user.plan === 'monthly') {
+    return ['telegram', 'whatsapp', 'instagram'];
+  }
+  return ['telegram'];
+}
+
+function allowedTypes(user, id) {
+  if (isAdmin(id) || user.plan !== 'free') {
+    return ['motivation', 'quote', 'hooks'];
+  }
+  return ['motivation', 'quote'];
+}
+
+/* ========= BOT ========= */
 
 const bot = new TelegramBot(BOT_TOKEN, { polling: true });
+const userState = {};
 
 bot.onText(/\/start/, msg => {
   const id = msg.chat.id;
   const db = loadDB();
-
   initUser(db, id);
   saveDB(db);
 
@@ -64,27 +85,21 @@ bot.onText(/\/start/, msg => {
 `👋 *AI Discipline & Skills Bot*
 
 🆓 Free: 3 posts/day  
-💰 Paid: Unlimited posts
+💰 Monthly: 20 posts/day  
+💎 Lifetime: Unlimited
 
 👇 Start generating`,
     {
       parse_mode: 'Markdown',
       reply_markup: {
         inline_keyboard: [
-          [{ text: '✍️ Generate Content', callback_data: 'generate' }],
-          [
-            { text: '📊 My Limit', callback_data: 'limit' },
-            { text: '💰 Paid Plan', callback_data: 'paid' }
-          ]
+          [{ text: '✍️ Generate', callback_data: 'generate' }],
+          [{ text: '💰 Paid Plan', callback_data: 'paid' }]
         ]
       }
     }
   );
 });
-
-/* =====================
-   CALLBACKS
-===================== */
 
 bot.on('callback_query', async q => {
   const id = q.message.chat.id;
@@ -95,54 +110,80 @@ bot.on('callback_query', async q => {
   initUser(db, id);
   const user = db.users[id];
 
-  // ---- LIMIT INFO ----
-  if (data === 'limit') {
-    return bot.sendMessage(
-      id,
-`📊 *Your Plan*
-
-Plan: ${user.plan.toUpperCase()}
-Used today: ${user.used}/3
-
-Upgrade for unlimited access.`,
-      { parse_mode: 'Markdown' }
-    );
-  }
-
-  // ---- PAID PLAN ----
+  /* ----- PAID INFO ----- */
   if (data === 'paid') {
     return bot.sendMessage(
       id,
-`💼 *Paid Plans*
+`💰 *Paid Plans*
 
-₹299 / month  
+₹299 – Monthly  
+• 20 posts/day  
+• Telegram, WhatsApp, Instagram  
+
+₹999 – Lifetime  
 • Unlimited posts  
-• Premium tone  
-
-₹999 Lifetime  
+• All platforms  
 
 Reply *PAID* to upgrade.`,
       { parse_mode: 'Markdown' }
     );
   }
 
-  // ---- GENERATE ----
+  /* ----- GENERATE ----- */
   if (data === 'generate') {
-
-    if (user.plan === 'free' && user.used >= 3) {
+    if (user.used >= dailyLimit(user, id)) {
       return bot.sendMessage(
         id,
 `🚫 *Daily limit reached*
 
-Free users can generate only 3 posts/day.
-Reply *PAID* to upgrade.`,
+Upgrade to continue.`,
         { parse_mode: 'Markdown' }
       );
     }
 
-    bot.sendMessage(id, 'Generating… ⏳');
+    const buttons = allowedPlatforms(user, id).map(p => [
+      { text: p.toUpperCase(), callback_data: `platform_${p}` }
+    ]);
 
-    /* ===== YOUR PROMPT (UNCHANGED) ===== */
+    return bot.sendMessage(id, 'Choose platform:', {
+      reply_markup: { inline_keyboard: buttons }
+    });
+  }
+
+  /* ----- PLATFORM ----- */
+  if (data.startsWith('platform_')) {
+    userState[id] = { platform: data.replace('platform_', '') };
+
+    const buttons = allowedTypes(user, id).map(t => [
+      { text: t.toUpperCase(), callback_data: `type_${t}` }
+    ]);
+
+    return bot.sendMessage(id, 'Choose type:', {
+      reply_markup: { inline_keyboard: buttons }
+    });
+  }
+
+  /* ----- TYPE ----- */
+  if (data.startsWith('type_')) {
+    userState[id].type = data.replace('type_', '');
+
+    return bot.sendMessage(id, 'Choose language:', {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: '🇮🇳 Indian English', callback_data: 'lang_indian' }],
+          [{ text: '🌍 Global English', callback_data: 'lang_global' }]
+        ]
+      }
+    });
+  }
+
+  /* ----- LANGUAGE → AI ----- */
+  if (data.startsWith('lang_')) {
+    const lang = data.replace('lang_', '');
+    const { platform, type } = userState[id];
+    userState[id] = {};
+
+    bot.sendMessage(id, 'Generating… ⏳');
 
     const prompt = `
 You are NOT an assistant.
@@ -161,21 +202,14 @@ Writing style:
 • Short, sharp sentences
 • Truth-based, not inspirational
 • Slightly bold, realistic tone
-• Human, modern voice
 
-Guidelines:
-• Write like someone sharing a hard-earned realization
-• No teaching, no advising, no explaining
-• Avoid overused motivational phrases
-• Avoid poetic or textbook-style language
-• If a line sounds like advice, rewrite it as an observation
-• Maximum 3 short lines
+Platform: ${platform}
+Type: ${type}
+Language: ${lang === 'indian' ? 'Indian English' : 'Global English'}
 
-Output format (STRICT):
-• Exactly 3 lines
-• One sentence per line
-• No bullets, no numbers
-• Stop after third line
+Output:
+Exactly 3 lines.
+Stop after third line.
 `;
 
     try {
@@ -195,8 +229,7 @@ Output format (STRICT):
       const json = await res.json();
       const text = json.choices[0].message.content.trim();
 
-      // ✅ CREDIT CUT – ONLY HERE
-      if (user.plan === 'free') {
+      if (!isAdmin(id)) {
         user.used += 1;
         saveDB(db);
       }
@@ -206,45 +239,35 @@ Output format (STRICT):
         `✍️ *Content Ready*\n\n${text}`,
         { parse_mode: 'Markdown' }
       );
-
     } catch (e) {
-      console.error(e);
-      return bot.sendMessage(id, 'AI busy. Try again later.');
+      return bot.sendMessage(id, 'AI busy. Try later.');
     }
   }
 });
 
-/* =====================
-   PAYMENT FLOW (SAME AS YOURS)
-===================== */
+/* ========= PAYMENT ========= */
 
-// user sends PAID
 bot.onText(/PAID/i, msg => {
   bot.sendMessage(
     msg.chat.id,
-`💳 *Upgrade to Paid Access*
-
-₹299 – Monthly  
-₹999 – Lifetime  
-
-📸 Send payment screenshot or transaction ID.
+`📸 Send payment screenshot.
 Admin will verify & activate.`
   );
 });
 
-// admin approval
-bot.onText(/\/approve (\d+)/, msg => {
+bot.onText(/\/approve (\d+) (monthly|lifetime)/, msg => {
   if (msg.chat.id !== ADMIN_ID) return;
 
   const uid = msg.match[1];
+  const plan = msg.match[2];
   const db = loadDB();
 
   initUser(db, uid);
-  db.users[uid].plan = 'paid';
+  db.users[uid].plan = plan;
   saveDB(db);
 
-  bot.sendMessage(uid, '✅ Paid access activated.');
-  bot.sendMessage(ADMIN_ID, `User ${uid} approved.`);
+  bot.sendMessage(uid, `✅ ${plan.toUpperCase()} access activated.`);
+  bot.sendMessage(ADMIN_ID, `User ${uid} approved (${plan}).`);
 });
 
-console.log('✅ Bot running with strict free-user control');
+console.log('✅ Bot running with strict control');
