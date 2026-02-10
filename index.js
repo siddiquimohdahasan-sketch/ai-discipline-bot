@@ -172,7 +172,7 @@ Upgrade to continue.`,
     const { platform, type } = userState[id];
     userState[id] = {};
 
-   const prompt = `
+    let prompt = `
 You are NOT an assistant.
 You do NOT explain.
 You output ONLY final post-ready content.
@@ -189,15 +189,58 @@ Writing style:
 • Short, sharp sentences
 • Truth-based, not inspirational
 • Slightly bold, realistic tone
+• Human, modern voice
+
+Guidelines:
+• Write like someone sharing a hard-earned realization
+• No teaching, no advising, no explaining
+• Avoid overused motivational phrases
+• Avoid poetic or textbook-style language
+• If a line sounds like advice, rewrite it as an observation
+• Maximum 3 short lines (except hooks)
 
 Platform: ${platform}
-Type: ${type}
 Language: ${lang === 'indian' ? 'Indian English' : 'Global English'}
+Output format (STRICT):
+• Write exactly 3 lines.
+• Each line must be one short sentence.
+• No numbering.
+• No bullet points.
+• No extra lines or spacing.
+• Stop after the third line.
+Stop after the third line.
 
-Output:
-Exactly 3 lines.
-Stop after third line.
+Formatting rules:
+Each line must be on a new line.
+Use line breaks between lines.
+Do not merge lines.
+Do not use quotation marks. Never wrap output in quotes.
 `;
+
+    if (type === 'motivation') {
+      prompt += `
+Write blunt, practical motivation.
+No fluff. No inspiration talk.
+`;
+    }
+
+    if (type === 'quote') {
+      prompt += `
+Write ONE original quote.
+Then add 1–2 supporting lines.
+`;
+    }
+
+    if (type === 'hooks') {
+      prompt += `
+Write 3 short hook-style thoughts.
+Each hook must present a contrast, tension, or uncomfortable truth.
+No motivational advice.
+Each hook should be standalone and scroll-stopping.
+`;
+    }
+
+    bot.sendMessage(id, 'Generating… ⏳');
     try {
       const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
@@ -247,4 +290,5 @@ bot.onText(/\/approve (\d+) (monthly|lifetime)/, msg => {
 });
 
 console.log('✅ BOT RUNNING – FREE USERS LOCKED');
+
 
