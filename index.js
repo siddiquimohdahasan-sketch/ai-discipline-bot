@@ -95,10 +95,19 @@ function getUserCredits(id) {
 
 function useCredit(id) {
   const db = loadDB();
-  if (db.users[id]) {
+
+  if (!db.users[id]) return;
+
+  if (db.users[id].credits > 0) {
     db.users[id].credits -= 1;
-    saveDB(db);
   }
+
+  // credit kabhi negative nahi jayega
+  if (db.users[id].credits < 0) {
+    db.users[id].credits = 0;
+  }
+
+  saveDB(db);
 }
 
 const platformsAllowed = id => {
@@ -425,6 +434,7 @@ Thank you for upgrading 🙌`
 );
   bot.sendMessage(msg.chat.id, `User ${uid} approved.`);
 });
+
 
 
 
