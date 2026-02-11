@@ -111,13 +111,10 @@ function useCredit(id) {
 }
 
 const platformsAllowed = id => {
-  if (isAdmin(id)) return ['telegram', 'whatsapp', 'instagram', 'twitter'];
-  if (paidUsers[id]) {
-    return paidUsers[id].plan === 'lifetime'
-      ? ['telegram', 'whatsapp', 'instagram', 'twitter']
-      : ['telegram', 'whatsapp', 'instagram'];
+  if (isAdmin(id) || paidUsers[id]) {
+    return ['telegram', 'instagram', 'youtube'];
   }
-  return ['telegram'];
+  return ['telegram', 'instagram'];
 };
 
 const typesAllowed = id => {
@@ -247,13 +244,14 @@ Reply *PAID* to upgrade.`,
     userState[id].type = data.replace('type_', '');
 
     return bot.sendMessage(id, 'Choose language:', {
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: '🇮🇳 Indian English', callback_data: 'lang_indian' }],
-          [{ text: '🌍 Global English', callback_data: 'lang_global' }]
-        ]
-      }
-    });
+  reply_markup: {
+    inline_keyboard: [
+      [{ text: '🇮🇳 Hindi', callback_data: 'lang_hindi' }],
+      [{ text: '🌍 English', callback_data: 'lang_english' }],
+      [{ text: '🔥 Hybrid (Hindi + English)', callback_data: 'lang_hybrid' }]
+    ]
+  }
+});
   }
 
   // ---------- LANGUAGE → AI CALL ----------
@@ -298,7 +296,10 @@ Rules:
 • One emotional ending
 • No hashtags
 • No emojis
-
+• Do NOT explain.
+• Do NOT give video instructions.
+• Do NOT use markdown.
+• Only output clean text.
 Language mode:
 ${lang === 'indian' ? 'Write fully in Hindi.' :
   lang === 'global' ? 'Write fully in English.' :
@@ -319,45 +320,49 @@ ENDING:
 } else {
 
   // PAID CREATOR TOOLKIT VERSION
-  prompt = `
-You are a professional viral Reel Script Creator.
+ prompt = `
+You are a viral emotional Reel Script writer for content creators.
 
-Create a complete Creator Toolkit output.
+Important:
+• Do NOT give video instructions.
+• Do NOT explain anything.
+• Do NOT use markdown.
+• Do NOT use headings like ###.
+• Do NOT describe camera angles.
+• Output only clean text content.
 
-Rules:
-• 30–45 sec reel script
-• 140–180 words
-• Emotional, realistic
-• High retention storytelling
-• No preaching tone
-• No emojis inside script
+Create a complete Creator Toolkit.
 
 Language mode:
 ${lang === 'indian' ? 'Write fully in Hindi.' :
-  lang === 'global' ? 'Write fully in English.' :
+  lang === 'global' ? 'Write fully in clean English.' :
   'Hook in Hindi, body in English, ending mixed Hindi-English.'}
 
-Output format:
+Output format EXACTLY like this:
 
-HOOK OPTIONS:
-1.
-2.
-
-REEL SCRIPT:
+HOOK OPTION 1:
 ...
 
-ALTERNATE ENDINGS:
-1. Emotional ending
-2. Twist ending
+HOOK OPTION 2:
+...
+
+REEL SCRIPT:
+(Write full 30–45 sec story script in paragraph form, no instructions)
+
+ALTERNATE ENDING 1:
+...
+
+ALTERNATE ENDING 2:
+...
 
 CAPTION:
-(Engaging short caption)
+...
 
 HASHTAGS:
-5 relevant hashtags
+#...
 
-LONG TELEGRAM VERSION:
-(300–600 word expanded emotional version)
+LONG VERSION:
+(300–500 word emotional expanded story)
 `;
 }
 
@@ -465,6 +470,7 @@ Thank you for upgrading 🙌`
 );
   bot.sendMessage(msg.chat.id, `User ${uid} approved.`);
 });
+
 
 
 
