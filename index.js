@@ -121,9 +121,9 @@ const platformsAllowed = id => {
 };
 
 const typesAllowed = id => {
-  if (isAdmin(id) || paidUsers[id]) return ['motivation', 'quote', 'hooks'];
-  return ['motivation', 'quote'];
+  return ['reel'];
 };
+
 /* =======================
    START
 ======================= */
@@ -270,78 +270,96 @@ Come back tomorrow or reply *PAID* to upgrade.`,
   );
 }
 
-  if (data.startsWith('lang_')) {
+  if (data.startsWith('lang_')){
     const lang = data.replace('lang_', '');
     const { platform, type } = userState[id];
     userState[id] = {};
 
-    let prompt = `
-You are NOT an assistant.
-You do NOT explain.
-You output ONLY final post-ready content.
+   const isPaid = paidUsers[id] || isAdmin(id);
 
-Topic scope (STRICT):
-discipline, effort, consistency, skills, self-improvement.
+let prompt;
 
-Money is allowed ONLY as an outcome of discipline and skills.
-Do NOT promise money.
-Do NOT mention income numbers.
-Do NOT sell anything.
+if (!isPaid) {
 
-Writing style:
-• Short, sharp sentences
-• Truth-based, not inspirational
-• Slightly bold, realistic tone
-• Human, modern voice
+  // FREE VERSION
+  prompt = `
+You are a professional short-form emotional story writer.
 
-Guidelines:
-• Write like someone sharing a hard-earned realization
-• No teaching, no advising, no explaining
-• Avoid overused motivational phrases
-• Avoid poetic or textbook-style language
-• If a line sounds like advice, rewrite it as an observation
-• Maximum 3 short lines (except hooks)
+Write a 30–45 second Reel Script.
 
-Platform: ${platform}
-Language: ${lang === 'indian' ? 'Indian English' : 'Global English'}
-Output format (STRICT):
-• Write exactly 3 lines.
-• Each line must be one short sentence.
-• No numbering.
-• No bullet points.
-• No extra lines or spacing.
-• Stop after the third line.
-Stop after the third line.
+Rules:
+• 120–150 words
+• Strong emotional hook (first 2 lines)
+• Realistic situation
+• No fantasy
+• No advice tone
+• No explanation
+• Simple human language
+• One emotional ending
+• No hashtags
+• No emojis
 
-Formatting rules:
-Each line must be on a new line.
-Use line breaks between lines.
-Do not merge lines.
-Do not use quotation marks. Never wrap output in quotes.
+Language mode:
+${lang === 'indian' ? 'Write fully in Hindi.' :
+  lang === 'global' ? 'Write fully in English.' :
+  'Hook in Hindi, story in English, ending mixed Hindi-English.'}
+
+Output format:
+
+HOOK:
+...
+
+REEL SCRIPT:
+...
+
+ENDING:
+...
 `;
 
-    if (type === 'motivation') {
-      prompt += `
-Write blunt, practical motivation.
-No fluff. No inspiration talk.
-`;
-    }
+} else {
 
-    if (type === 'quote') {
-      prompt += `
-Write ONE original quote.
-Then add 1–2 supporting lines.
-`;
-    }
+  // PAID CREATOR TOOLKIT VERSION
+  prompt = `
+You are a professional viral Reel Script Creator.
 
-    if (type === 'hooks') {
-      prompt += `
-Write 3 short hook-style thoughts.
-Each hook must present a contrast, tension, or uncomfortable truth.
-No motivational advice.
-Each hook should be standalone and scroll-stopping.
+Create a complete Creator Toolkit output.
+
+Rules:
+• 30–45 sec reel script
+• 140–180 words
+• Emotional, realistic
+• High retention storytelling
+• No preaching tone
+• No emojis inside script
+
+Language mode:
+${lang === 'indian' ? 'Write fully in Hindi.' :
+  lang === 'global' ? 'Write fully in English.' :
+  'Hook in Hindi, body in English, ending mixed Hindi-English.'}
+
+Output format:
+
+HOOK OPTIONS:
+1.
+2.
+
+REEL SCRIPT:
+...
+
+ALTERNATE ENDINGS:
+1. Emotional ending
+2. Twist ending
+
+CAPTION:
+(Engaging short caption)
+
+HASHTAGS:
+5 relevant hashtags
+
+LONG TELEGRAM VERSION:
+(300–600 word expanded emotional version)
 `;
-    }
+}
 
     bot.sendMessage(id, 'Generating… ⏳');
 
@@ -447,6 +465,7 @@ Thank you for upgrading 🙌`
 );
   bot.sendMessage(msg.chat.id, `User ${uid} approved.`);
 });
+
 
 
 
