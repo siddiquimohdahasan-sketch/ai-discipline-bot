@@ -1,4 +1,4 @@
-// ================== KEEP ALIVE ==================
+// ================= KEEP ALIVE =================
 const http = require('http');
 
 const PORT = process.env.PORT || 3000;
@@ -8,7 +8,7 @@ http.createServer((req, res) => {
   res.end('OK');
 }).listen(PORT);
 
-// ================== IMPORTS ==================
+// ================= IMPORTS =================
 const TelegramBot = require('node-telegram-bot-api');
 const fetch = require('node-fetch');
 const fs = require('fs');
@@ -19,7 +19,7 @@ const ADMIN_ID = Number(process.env.ADMIN_ID);
 
 const DB_FILE = './db.json';
 
-// ================== DATABASE ==================
+// ================= DATABASE =================
 function loadDB() {
   if (!fs.existsSync(DB_FILE)) {
     fs.writeFileSync(DB_FILE, JSON.stringify({ users: {} }, null, 2));
@@ -40,10 +40,7 @@ function getCredits(id) {
   const today = getToday();
 
   if (!db.users[id] || db.users[id].date !== today) {
-    db.users[id] = {
-      credits: 3,
-      date: today
-    };
+    db.users[id] = { credits: 3, date: today };
     saveDB(db);
   }
 
@@ -52,36 +49,33 @@ function getCredits(id) {
 
 function useCredit(id) {
   const db = loadDB();
-  if (!db.users[id]) return;
-  if (db.users[id].credits > 0) {
+  if (db.users[id] && db.users[id].credits > 0) {
     db.users[id].credits -= 1;
+    saveDB(db);
   }
-  saveDB(db);
 }
 
-// ================== BOT INIT ==================
+// ================= BOT INIT =================
 const bot = new TelegramBot(BOT_TOKEN, { polling: true });
 
 const paidUsers = {};
 const isAdmin = id => id === ADMIN_ID;
 const isPaid = id => paidUsers[id] || isAdmin(id);
 
-// ================== START ==================
+// ================= START =================
 bot.onText(/\/start/, msg => {
   bot.sendMessage(
     msg.chat.id,
-`🎬 Story Creator Toolkit
+`Story Creator Toolkit
 
-Create viral emotional reel scripts instantly.
+Free: 3 Instagram emotional reel scripts per day
+Paid: Multi-platform + Full emotional toolkit
 
-🆓 Free: 3 Instagram reel scripts/day
-💰 Paid: Multi-platform + Full Toolkit
-
-Tap below to start.`,
+Tap Generate to start.`,
     {
       reply_markup: {
         inline_keyboard: [
-          [{ text: 'Generate Script', callback_data: 'generate' }],
+          [{ text: 'Generate', callback_data: 'generate' }],
           [{ text: 'My Limit', callback_data: 'limit' }],
           [{ text: 'Paid Plan', callback_data: 'paid' }]
         ]
@@ -90,47 +84,41 @@ Tap below to start.`,
   );
 });
 
-// ================== CALLBACK ==================
+// ================= CALLBACK =================
 bot.on('callback_query', async q => {
+
   const id = q.message.chat.id;
   const data = q.data;
-
   bot.answerCallbackQuery(q.id);
 
-  // LIMIT
   if (data === 'limit') {
     const credits = getCredits(id);
-    return bot.sendMessage(id, `You have ${credits} free scripts left today.`);
+    return bot.sendMessage(id, `Free scripts left today: ${credits}`);
   }
 
-  // PAID INFO
   if (data === 'paid') {
     return bot.sendMessage(id,
-`💰 Paid Plan
-
-₹299 / Month
-₹999 Lifetime
+`Paid Plan:
+299 Monthly
+999 Lifetime
 
 Includes:
-✔ Instagram
-✔ Telegram
-✔ YouTube
-✔ Full Creator Toolkit
+Instagram
+Telegram
+YouTube
+Full emotional toolkit
 
 Reply PAID to upgrade.`);
   }
 
-  // GENERATE
   if (data === 'generate') {
 
     if (!isPaid(id)) {
-      const credits = getCredits(id);
-      if (credits <= 0) {
+      if (getCredits(id) <= 0) {
         return bot.sendMessage(id, 'Daily limit reached. Upgrade to continue.');
       }
     }
 
-    // Platform Selection
     const freePlatforms = [['Instagram', 'platform_instagram']];
     const paidPlatforms = [
       ['Instagram', 'platform_instagram'],
@@ -138,9 +126,7 @@ Reply PAID to upgrade.`);
       ['YouTube', 'platform_youtube']
     ];
 
-    const buttons = isPaid(id)
-      ? paidPlatforms
-      : freePlatforms;
+    const buttons = isPaid(id) ? paidPlatforms : freePlatforms;
 
     return bot.sendMessage(id, 'Choose Platform:', {
       reply_markup: {
@@ -151,8 +137,8 @@ Reply PAID to upgrade.`);
     });
   }
 
-  // PLATFORM SELECTED
   if (data.startsWith('platform_')) {
+
     const platform = data.replace('platform_', '');
 
     return bot.sendMessage(id, 'Choose Language:', {
@@ -166,7 +152,6 @@ Reply PAID to upgrade.`);
     });
   }
 
-  // LANGUAGE SELECTED
   if (data.startsWith('lang_')) {
 
     const parts = data.split('_');
@@ -178,31 +163,48 @@ Reply PAID to upgrade.`);
     if (!isPaid(id)) {
 
       prompt = `
-Write a 30-45 second emotional Instagram reel script.
+Write a realistic emotional human story.
+30-45 seconds length.
 120-150 words.
-Strong hook.
-One emotional ending.
+No advice.
+No marketing.
+No growth tips.
+No camera instructions.
+No formatting symbols.
 Language: ${language}
-Platform: ${platform}
-No explanation.
+Platform tone: ${platform}
+
+Output:
+HOOK:
+REEL SCRIPT:
+ENDING:
 `;
 
     } else {
 
       prompt = `
-Create Full Creator Toolkit for ${platform}.
+Write a realistic emotional human story.
+
+No marketing.
+No growth advice.
+No explanation.
+No camera directions.
+No formatting symbols.
+No markdown.
 
 Language: ${language}
+Platform tone: ${platform}
 
-Include:
-2 Hook Options
-Reel Script
-2 Alternate Endings
-Caption
-5 Hashtags
-200-300 word long version
+Output:
 
-No explanation text.
+HOOK OPTION 1:
+HOOK OPTION 2:
+REEL SCRIPT:
+ALTERNATE ENDING 1:
+ALTERNATE ENDING 2:
+CAPTION:
+HASHTAGS:
+LONG VERSION (200-300 words):
 `;
     }
 
@@ -237,12 +239,12 @@ No explanation text.
       return bot.sendMessage(id, 'AI busy. Try again later.');
     }
   }
+
 });
 
-// ================== PAYMENT ==================
+// ================= PAYMENT =================
 bot.onText(/PAID/i, msg => {
-  bot.sendMessage(msg.chat.id,
-'Send payment screenshot. Admin will activate your access.');
+  bot.sendMessage(msg.chat.id, 'Send payment screenshot to admin.');
 });
 
 bot.onText(/\/approve (\d+)/, (msg, match) => {
@@ -255,4 +257,4 @@ bot.onText(/\/approve (\d+)/, (msg, match) => {
   bot.sendMessage(msg.chat.id, `User ${uid} approved.`);
 });
 
-console.log('🚀 Story Creator Toolkit Bot Running');
+console.log('Story Creator Toolkit Bot Running');
