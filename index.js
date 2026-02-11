@@ -270,19 +270,19 @@ Come back tomorrow or reply *PAID* to upgrade.`,
   );
 }
 
-  if (data.startsWith('lang_')){
-    const lang = data.replace('lang_', '');
-    const { platform, type } = userState[id];
-    userState[id] = {};
+  if (data.startsWith('lang_')) {
 
-   const isPaid = paidUsers[id] || isAdmin(id);
+  const lang = data.replace('lang_', '');
+  userState[id] = {};
 
-let prompt;
+  const isPaid = paidUsers[id] || isAdmin(id);
 
-if (!isPaid) {
+  let prompt;
 
-  // FREE VERSION
-  prompt = `
+  if (!isPaid) {
+
+    // FREE VERSION
+    prompt = `
 You are a professional short-form emotional story writer.
 
 Write a 30–45 second Reel Script.
@@ -293,18 +293,16 @@ Rules:
 • Realistic situation
 • No fantasy
 • No advice tone
-• No explanation
 • Simple human language
 • One emotional ending
 • No hashtags
 • No emojis
-• Do NOT explain.
-• Do NOT give video instructions.
-• Do NOT use markdown.
-• Only output clean text.
+• No markdown
+• No explanations
+
 Language mode:
-${lang === 'indian' ? 'Write fully in Hindi.' :
-  lang === 'global' ? 'Write fully in English.' :
+${lang === 'hindi' ? 'Write fully in Hindi.' :
+  lang === 'english' ? 'Write fully in clean English.' :
   'Hook in Hindi, story in English, ending mixed Hindi-English.'}
 
 Output format:
@@ -319,28 +317,25 @@ ENDING:
 ...
 `;
 
-} else {
+  } else {
 
-  // PAID CREATOR TOOLKIT VERSION
- prompt = `
+    // PAID CREATOR TOOLKIT VERSION
+    prompt = `
 You are a viral emotional Reel Script writer for content creators.
 
-Important:
-• Do NOT give video instructions.
-• Do NOT explain anything.
-• Do NOT use markdown.
-• Do NOT use headings like ###.
-• Do NOT describe camera angles.
-• Output only clean text content.
+Do NOT explain.
+Do NOT give video instructions.
+Do NOT use markdown.
+Only output clean text.
 
 Create a complete Creator Toolkit.
 
 Language mode:
-${lang === 'indian' ? 'Write fully in Hindi.' :
-  lang === 'global' ? 'Write fully in clean English.' :
+${lang === 'hindi' ? 'Write fully in Hindi.' :
+  lang === 'english' ? 'Write fully in clean English.' :
   'Hook in Hindi, body in English, ending mixed Hindi-English.'}
 
-Output format EXACTLY like this:
+Output format:
 
 HOOK OPTION 1:
 ...
@@ -349,7 +344,7 @@ HOOK OPTION 2:
 ...
 
 REEL SCRIPT:
-(Write full 30–45 sec story script in paragraph form, no instructions)
+...
 
 ALTERNATE ENDING 1:
 ...
@@ -364,45 +359,41 @@ HASHTAGS:
 #...
 
 LONG VERSION:
-(300–500 word emotional expanded story)
+(200–300 word expanded emotional version)
 `;
-}
-
-    bot.sendMessage(id, 'Generating… ⏳');
-
-    try {
-      const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${AI_API_KEY}`
-        },
-        body: JSON.stringify({
-          model: 'mistralai/mistral-7b-instruct',
-          messages: [{ role: 'system', content: prompt }],
-          max_tokens: 160
-        })
-      });
-
-      const json = await res.json();
-      const text = json.choices[0].message.content.trim();
-
-// ✅ CREDIT KAM KARO YAHAN
-if (!isAdmin(id)) {
-  useCredit(id);
-}
-
-return bot.sendMessage(
-  id,
-  `✍️ *Content Ready*\n\n${text}`,
-  { parse_mode: 'Markdown' }
-);
-    } catch (e) {
-      console.error(e);
-      return bot.sendMessage(id, 'AI busy. Try again later.');
-    }
   }
-});
+
+  bot.sendMessage(id, 'Generating… ⏳');
+
+  try {
+
+    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${AI_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: 'mistralai/mistral-7b-instruct',
+        messages: [{ role: 'system', content: prompt }],
+        max_tokens: 600
+      })
+    });
+
+    const json = await res.json();
+    const text = json.choices[0].message.content.trim();
+
+    if (!isAdmin(id)) {
+      useCredit(id);
+    }
+
+    return bot.sendMessage(id, `✍️ Content Ready\n\n${text}`);
+
+  } catch (e) {
+    console.error(e);
+    return bot.sendMessage(id, 'AI busy. Try again later.');
+  }
+}
 
 console.log('✅ AI Discipline & Skills Bot Running...');
 // ===== PAYMENT PROOF FLOW =====
@@ -472,6 +463,7 @@ Thank you for upgrading 🙌`
 );
   bot.sendMessage(msg.chat.id, `User ${uid} approved.`);
 });
+
 
 
 
