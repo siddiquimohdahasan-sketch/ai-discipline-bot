@@ -1,3 +1,4 @@
+
 // --- Render keep-alive server (MUST be at top) ---
 const http = require('http');
 
@@ -7,7 +8,7 @@ http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.end('OK');
 }).listen(PORT, () => {
-  // console.log(`🌐 HTTP server running on port ${PORT}`);
+  console.log(`🌐 HTTP server running on port ${PORT}`);
 });
 
 const TelegramBot = require('node-telegram-bot-api');
@@ -111,16 +112,19 @@ function useCredit(id) {
 }
 
 const platformsAllowed = id => {
-  if (isAdmin(id) || paidUsers[id]) {
-    return ['telegram', 'instagram', 'youtube'];
+  if (isAdmin(id)) return ['telegram', 'whatsapp', 'instagram', 'twitter'];
+  if (paidUsers[id]) {
+    return paidUsers[id].plan === 'lifetime'
+      ? ['telegram', 'whatsapp', 'instagram', 'twitter']
+      : ['telegram', 'whatsapp', 'instagram'];
   }
-  return ['telegram', 'instagram'];
+  return ['telegram'];
 };
 
 const typesAllowed = id => {
-  return ['reel'];
+  if (isAdmin(id) || paidUsers[id]) return ['motivation', 'quote', 'hooks'];
+  return ['motivation', 'quote'];
 };
-
 /* =======================
    START
 ======================= */
@@ -131,15 +135,17 @@ bot.onText(/\/start/, msg => {
 
   bot.sendMessage(
     id,
-    `👋 AI Story Creator Toolkit
+    `👋 *AI Discipline & Skills Bot*
 
-Create viral emotional reel scripts in seconds.
+Clean, realistic content.
+No fake motivation. No hype.
 
-🆓 Free: 3 scripts/day
-💰 Paid: Full Creator Toolkit access
+🆓 Free: 3 posts/day  
+💰 Paid: Higher limits + premium tone
 
-👇 Tap below to start`,
+👇 Start generating`,
     {
+      parse_mode: 'Markdown',
       reply_markup: {
         inline_keyboard: [
           [{ text: '✍️ Generate Content', callback_data: 'generate' }],
@@ -179,7 +185,7 @@ Upgrade to unlock:
       { parse_mode: 'Markdown' }
     );
   }
-}
+
   // ---------- PAID PLANS ----------
   if (data === 'paid') {
     return bot.sendMessage(
@@ -242,14 +248,13 @@ Reply *PAID* to upgrade.`,
     userState[id].type = data.replace('type_', '');
 
     return bot.sendMessage(id, 'Choose language:', {
-  reply_markup: {
-    inline_keyboard: [
-      [{ text: '🇮🇳 Hindi', callback_data: 'lang_hindi' }],
-      [{ text: '🌍 English', callback_data: 'lang_english' }],
-      [{ text: '🔥 Hybrid (Hindi + English)', callback_data: 'lang_hybrid' }]
-    ]
-  }
-});
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: '🇮🇳 Indian English', callback_data: 'lang_indian' }],
+          [{ text: '🌍 Global English', callback_data: 'lang_global' }]
+        ]
+      }
+    });
   }
 
   // ---------- LANGUAGE → AI CALL ----------
@@ -267,129 +272,113 @@ Come back tomorrow or reply *PAID* to upgrade.`,
 }
 
   if (data.startsWith('lang_')) {
+    const lang = data.replace('lang_', '');
+    const { platform, type } = userState[id];
+    userState[id] = {};
 
-  const lang = data.replace('lang_', '');
-  userState[id] = {};
+    let prompt = `
+You are NOT an assistant.
+You do NOT explain.
+You output ONLY final post-ready content.
 
-  const isPaid = paidUsers[id] || isAdmin(id);
+Topic scope (STRICT):
+discipline, effort, consistency, skills, self-improvement.
 
-  let prompt;
+Money is allowed ONLY as an outcome of discipline and skills.
+Do NOT promise money.
+Do NOT mention income numbers.
+Do NOT sell anything.
 
-  if (!isPaid) {
+Writing style:
+• Short, sharp sentences
+• Truth-based, not inspirational
+• Slightly bold, realistic tone
+• Human, modern voice
 
-    // FREE VERSION
-    prompt = `
-You are a professional short-form emotional story writer.
+Guidelines:
+• Write like someone sharing a hard-earned realization
+• No teaching, no advising, no explaining
+• Avoid overused motivational phrases
+• Avoid poetic or textbook-style language
+• If a line sounds like advice, rewrite it as an observation
+• Maximum 3 short lines (except hooks)
 
-Write a 30–45 second Reel Script.
+Platform: ${platform}
+Language: ${lang === 'indian' ? 'Indian English' : 'Global English'}
+Output format (STRICT):
+• Write exactly 3 lines.
+• Each line must be one short sentence.
+• No numbering.
+• No bullet points.
+• No extra lines or spacing.
+• Stop after the third line.
+Stop after the third line.
 
-Rules:
-• 120–150 words
-• Strong emotional hook (first 2 lines)
-• Realistic situation
-• No fantasy
-• No advice tone
-• Simple human language
-• One emotional ending
-• No hashtags
-• No emojis
-• No markdown
-• No explanations
-
-Language mode:
-${lang === 'hindi' ? 'Write fully in Hindi.' :
-  lang === 'english' ? 'Write fully in clean English.' :
-  'Hook in Hindi, story in English, ending mixed Hindi-English.'}
-
-Output format:
-
-HOOK:
-...
-
-REEL SCRIPT:
-...
-
-ENDING:
-...
+Formatting rules:
+Each line must be on a new line.
+Use line breaks between lines.
+Do not merge lines.
+Do not use quotation marks. Never wrap output in quotes.
 `;
 
-  } else {
-
-    // PAID CREATOR TOOLKIT VERSION
-    prompt = `
-You are a viral emotional Reel Script writer for content creators.
-
-Do NOT explain.
-Do NOT give video instructions.
-Do NOT use markdown.
-Only output clean text.
-
-Create a complete Creator Toolkit.
-
-Language mode:
-${lang === 'hindi' ? 'Write fully in Hindi.' :
-  lang === 'english' ? 'Write fully in clean English.' :
-  'Hook in Hindi, body in English, ending mixed Hindi-English.'}
-
-Output format:
-
-HOOK OPTION 1:
-...
-
-HOOK OPTION 2:
-...
-
-REEL SCRIPT:
-...
-
-ALTERNATE ENDING 1:
-...
-
-ALTERNATE ENDING 2:
-...
-
-CAPTION:
-...
-
-HASHTAGS:
-#...
-
-LONG VERSION:
-(200–300 word expanded emotional version)
+    if (type === 'motivation') {
+      prompt += `
+Write blunt, practical motivation.
+No fluff. No inspiration talk.
 `;
-  }
-
-  bot.sendMessage(id, 'Generating… ⏳');
-
-  try {
-
-    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${AI_API_KEY}`
-      },
-      body: JSON.stringify({
-        model: 'mistralai/mistral-7b-instruct',
-        messages: [{ role: 'system', content: prompt }],
-        max_tokens: 600
-      })
-    });
-
-    const json = await res.json();
-    const text = json.choices[0].message.content.trim();
-
-    if (!isAdmin(id)) {
-      useCredit(id);
     }
 
-    return bot.sendMessage(id, `✍️ Content Ready\n\n${text}`);
+    if (type === 'quote') {
+      prompt += `
+Write ONE original quote.
+Then add 1–2 supporting lines.
+`;
+    }
 
-  } catch (e) {
-    console.error(e);
-    return bot.sendMessage(id, 'AI busy. Try again later.');
-  }
+    if (type === 'hooks') {
+      prompt += `
+Write 3 short hook-style thoughts.
+Each hook must present a contrast, tension, or uncomfortable truth.
+No motivational advice.
+Each hook should be standalone and scroll-stopping.
+`;
+    }
+
+    bot.sendMessage(id, 'Generating… ⏳');
+
+    try {
+      const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${AI_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: 'mistralai/mistral-7b-instruct',
+          messages: [{ role: 'system', content: prompt }],
+          max_tokens: 160
+        })
+      });
+
+      const json = await res.json();
+      const text = json.choices[0].message.content.trim();
+
+// ✅ CREDIT KAM KARO YAHAN
+if (!isAdmin(id)) {
+  useCredit(id);
 }
+
+return bot.sendMessage(
+  id,
+  `✍️ *Content Ready*\n\n${text}`,
+  { parse_mode: 'Markdown' }
+);
+    } catch (e) {
+      console.error(e);
+      return bot.sendMessage(id, 'AI busy. Try again later.');
+    }
+  }
+});
 
 console.log('✅ AI Discipline & Skills Bot Running...');
 // ===== PAYMENT PROOF FLOW =====
@@ -459,21 +448,3 @@ Thank you for upgrading 🙌`
 );
   bot.sendMessage(msg.chat.id, `User ${uid} approved.`);
 });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
