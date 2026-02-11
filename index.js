@@ -154,7 +154,8 @@ No fake motivation. No hype.
         ]
       }
     }
-});
+  ;
+})
 
 /* =======================
    CALLBACKS
@@ -462,6 +463,7 @@ Thank you for upgrading 🙌`
 );
   bot.sendMessage(msg.chat.id, `User ${uid} approved.`);
 });
+
 
 
 
