@@ -129,8 +129,10 @@ bot.onText(/\/start/, msg => {
   const id = msg.chat.id;
   userCredits[id] = dailyLimit(id);
 
-  bot.sendMessage(
-    id,
+bot.sendMessage(
+  id,
+  `✍️ Content Ready\n\n${text}`
+);
     `👋 *AI Discipline & Skills Bot*
 
 Clean, realistic content.
@@ -470,6 +472,7 @@ Thank you for upgrading 🙌`
 );
   bot.sendMessage(msg.chat.id, `User ${uid} approved.`);
 });
+
 
 
 
