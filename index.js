@@ -183,7 +183,7 @@ Upgrade to unlock:
       { parse_mode: 'Markdown' }
     );
   }
-
+}
   // ---------- PAID PLANS ----------
   if (data === 'paid') {
     return bot.sendMessage(
@@ -463,6 +463,7 @@ Thank you for upgrading 🙌`
 );
   bot.sendMessage(msg.chat.id, `User ${uid} approved.`);
 });
+
 
 
 
