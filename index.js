@@ -129,21 +129,17 @@ bot.onText(/\/start/, msg => {
   const id = msg.chat.id;
   userCredits[id] = dailyLimit(id);
 
-bot.sendMessage(
-  id,
-  `✍️ Content Ready\n\n${text}`
-);
-    `👋 *AI Discipline & Skills Bot*
+  bot.sendMessage(
+    id,
+    `👋 AI Story Creator Toolkit
 
-Clean, realistic content.
-No fake motivation. No hype.
+Create viral emotional reel scripts in seconds.
 
-🆓 Free: 3 posts/day  
-💰 Paid: Higher limits + premium tone
+🆓 Free: 3 scripts/day
+💰 Paid: Full Creator Toolkit access
 
-👇 Start generating`,
+👇 Tap below to start`,
     {
-      parse_mode: 'Markdown',
       reply_markup: {
         inline_keyboard: [
           [{ text: '✍️ Generate Content', callback_data: 'generate' }],
@@ -154,8 +150,8 @@ No fake motivation. No hype.
         ]
       }
     }
-  ;
-})
+  );
+});
 
 /* =======================
    CALLBACKS
@@ -463,6 +459,7 @@ Thank you for upgrading 🙌`
 );
   bot.sendMessage(msg.chat.id, `User ${uid} approved.`);
 });
+
 
 
 
