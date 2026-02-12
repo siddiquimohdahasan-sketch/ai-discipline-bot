@@ -175,60 +175,57 @@ Reply PAID to upgrade.`);
     if (!isPaid(id)) {
 
     prompt = `
-Write a realistic emotional story set in an Indian middle class family.
+Write a realistic emotional moment from an Indian middle class family.
 
-Tone: mostly silent pain.
-Use very simple spoken home-style language.
-Avoid poetic expressions.
-Avoid heavy Hindi words.
-Avoid literary English.
+Very important:
+Write like someone remembering their own family.
+Use very simple spoken language.
+Short sentences.
+No poetic lines.
+No philosophical lines.
+No dramatic words.
+No heavy vocabulary.
+No metaphor.
+No over-explanation.
+No multiple scenes.
+Only ONE small daily moment.
 
-No marketing.
-No growth advice.
-No dramatic accident.
-No death shock.
-No camera instructions.
-No formatting symbols.
-No emojis.
+Tone: silent pain.
 
 Language: ${language}
 
 Length:
-25-35 seconds reel.
-90-120 words only.
-Only ONE scene.
-No multiple timelines.
+25-30 second reel.
+80-110 words maximum.
 
-Output format:
+Structure:
 
 HOOK:
-(one simple line)
+(one raw simple line)
 
 REEL SCRIPT:
-(short grounded story)
+(very grounded single moment)
 
 ENDING:
-(one subtle emotional realization)
+(one quiet emotional realization, simple words)
 `;
-
 
     } else {
 
     prompt = `
-Write a realistic emotional story set in an Indian middle class family.
+Write a realistic emotional moment from an Indian middle class family.
 
-Tone: mostly silent pain.
-Use very simple spoken home-style language.
-Avoid poetic expressions.
-Avoid heavy words.
-Avoid literary tone.
+Write like someone sharing a real memory.
+Very simple spoken language.
+Short sentences.
+No poetic tone.
+No dramatic exaggeration.
+No metaphor.
+No heavy words.
+No multiple timelines.
+Only one daily life moment.
 
-No marketing.
-No social media advice.
-No dramatic accident.
-No sudden shocking death.
-No formatting symbols.
-No emojis.
+Tone: silent pain.
 
 Language: ${language}
 
@@ -236,12 +233,12 @@ Create full creator toolkit:
 
 HOOK OPTION 1:
 HOOK OPTION 2:
-REEL SCRIPT (25-35 sec, single scene):
+REEL SCRIPT (25-30 sec, single moment only):
 ALTERNATE ENDING 1:
 ALTERNATE ENDING 2:
-CAPTION:
+CAPTION (short, simple):
 HASHTAGS (5 simple emotional hashtags):
-LONG VERSION (200-250 words expanding same story only):
+LONG VERSION (200-220 words expanding the same moment only, no new story):
 `;
     }
 
@@ -295,5 +292,6 @@ bot.onText(/\/approve (\d+)/, (msg, match) => {
 });
 
 console.log('Story Creator Toolkit Bot Running');
+
 
 
