@@ -96,93 +96,41 @@ Tap Generate to start.`,
 });
 
 // ================= CALLBACK =================
-bot.on('callback_query', async q => {
+bot.on('callback_query', async (q) => {
 
   const id = q.message.chat.id;
   const data = q.data;
+
   bot.answerCallbackQuery(q.id);
 
-  if (data === 'limit') {
-    const credits = getCredits(id);
-    return bot.sendMessage(id, `Free scripts left today: ${credits}`);
-  }
+  // GENERATE BUTTON
+  if (data === "generate") {
 
-  if (data === 'paid') {
-    return bot.sendMessage(id,
-`Paid Plan:
-299 Monthly
-999 Lifetime
-
-Includes:
-Instagram
-Telegram
-YouTube
-Full emotional toolkit
-
-Reply PAID to upgrade.`);
-  }
-
-  if (data === 'generate') {
-
-  if (!isPaid(id) && !isAdmin(id)) {
-    const credits = getCredits(id);
-
-    if (credits <= 0) {
-      return bot.sendMessage(
-        id,
-        "🚫 Daily limit reached.\nCome back tomorrow or upgrade."
-      );
-    }
-  }
-
-  return bot.sendMessage(id, "Choose language:", {
-    reply_markup: {
-      inline_keyboard: [
-        [{ text: "Hindi", callback_data: "lang_hindi" }],
-        [{ text: "English", callback_data: "lang_english" }]
-      ]
-    }
-  });
-}
-
-    const freePlatforms = [['Instagram', 'platform_instagram']];
-    const paidPlatforms = [
-      ['Instagram', 'platform_instagram'],
-      ['Telegram', 'platform_telegram'],
-      ['YouTube', 'platform_youtube']
-    ];
-
-    const buttons = isPaid(id) ? paidPlatforms : freePlatforms;
-
-    return bot.sendMessage(id, 'Choose Platform:', {
-      reply_markup: {
-        inline_keyboard: buttons.map(p => [
-          { text: p[0], callback_data: p[1] }
-        ])
+    if (!isPaid(id) && !isAdmin(id)) {
+      const credits = getCredits(id);
+      if (credits <= 0) {
+        return bot.sendMessage(
+          id,
+          "🚫 Daily limit reached.\nCome back tomorrow or upgrade."
+        );
       }
-    });
-  }
+    }
 
-  if (data.startsWith('platform_')) {
-
-    const platform = data.replace('platform_', '');
-
-    return bot.sendMessage(id, 'Choose Language:', {
+    return bot.sendMessage(id, "Choose language:", {
       reply_markup: {
         inline_keyboard: [
-          [{ text: 'Hindi', callback_data: `lang_${platform}_hindi` }],
-          [{ text: 'English', callback_data: `lang_${platform}_english` }],
-          [{ text: 'Hybrid', callback_data: `lang_${platform}_hybrid` }]
+          [{ text: "Hindi", callback_data: "lang_hindi" }],
+          [{ text: "English", callback_data: "lang_english" }]
         ]
       }
     });
   }
 
-  if (data.startsWith('lang_')) {
+  // LANGUAGE SELECT
+  if (data.startsWith("lang_")) {
 
-    const parts = data.split('_');
-    const platform = parts[1];
-    const language = parts[2];
+    const language =
+      data === "lang_hindi" ? "Hindi" : "English";
 
     let prompt;
 
@@ -256,35 +204,35 @@ LONG VERSION (200-220 words expanding the same moment only, no new story):
 `;
     }
 
-    bot.sendMessage(id, 'Generating...');
+    bot.sendMessage(id, "Generating... ⏳");
 
     try {
 
-      const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
+      const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
           Authorization: `Bearer ${AI_API_KEY}`
         },
         body: JSON.stringify({
-          model: 'mistralai/mistral-7b-instruct',
-          messages: [{ role: 'user', content: prompt }],
-          max_tokens: 700
+          model: "mistralai/mistral-7b-instruct",
+          messages: [{ role: "user", content: prompt }],
+          max_tokens: 500
         })
       });
 
       const json = await res.json();
       const text = json.choices[0].message.content.trim();
 
-      if (!isPaid(id)) {
+      if (!isPaid(id) && !isAdmin(id)) {
         useCredit(id);
       }
 
-      return bot.sendMessage(id, `Content Ready:\n\n${text}`);
+      return bot.sendMessage(id, text);
 
     } catch (err) {
       console.error(err);
-      return bot.sendMessage(id, 'AI busy. Try again later.');
+      return bot.sendMessage(id, "AI error. Try again.");
     }
   }
 
@@ -306,6 +254,7 @@ bot.onText(/\/approve (\d+)/, (msg, match) => {
 });
 
 console.log('Story Creator Toolkit Bot Running');
+
 
 
 
