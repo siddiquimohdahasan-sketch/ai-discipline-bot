@@ -124,11 +124,25 @@ Reply PAID to upgrade.`);
 
   if (data === 'generate') {
 
-    if (!isPaid(id)) {
-  const credits = getCredits(id);
-  if (credits <= 0) {
-    return bot.sendMessage(id, "Daily limit reached. Come back tomorrow or upgrade.");
+  if (!isPaid(id) && !isAdmin(id)) {
+    const credits = getCredits(id);
+
+    if (credits <= 0) {
+      return bot.sendMessage(
+        id,
+        "🚫 Daily limit reached.\nCome back tomorrow or upgrade."
+      );
+    }
   }
+
+  return bot.sendMessage(id, "Choose language:", {
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: "Hindi", callback_data: "lang_hindi" }],
+        [{ text: "English", callback_data: "lang_english" }]
+      ]
+    }
+  });
 }
 
     const freePlatforms = [['Instagram', 'platform_instagram']];
@@ -292,6 +306,7 @@ bot.onText(/\/approve (\d+)/, (msg, match) => {
 });
 
 console.log('Story Creator Toolkit Bot Running');
+
 
 
 
