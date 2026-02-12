@@ -39,8 +39,17 @@ function getCredits(id) {
   const db = loadDB();
   const today = getToday();
 
-  if (!db.users[id] || db.users[id].date !== today) {
-    db.users[id] = { credits: 3, date: today };
+  if (!db.users[id]) {
+    db.users[id] = {
+      credits: 3,
+      date: today
+    };
+    saveDB(db);
+  }
+
+  if (db.users[id].date !== today) {
+    db.users[id].credits = 3;
+    db.users[id].date = today;
     saveDB(db);
   }
 
@@ -49,7 +58,9 @@ function getCredits(id) {
 
 function useCredit(id) {
   const db = loadDB();
-  if (db.users[id] && db.users[id].credits > 0) {
+  if (!db.users[id]) return;
+
+  if (db.users[id].credits > 0) {
     db.users[id].credits -= 1;
     saveDB(db);
   }
@@ -114,10 +125,11 @@ Reply PAID to upgrade.`);
   if (data === 'generate') {
 
     if (!isPaid(id)) {
-      if (getCredits(id) <= 0) {
-        return bot.sendMessage(id, 'Daily limit reached. Upgrade to continue.');
-      }
-    }
+  const credits = getCredits(id);
+  if (credits <= 0) {
+    return bot.sendMessage(id, "Daily limit reached. Come back tomorrow or upgrade.");
+  }
+}
 
     const freePlatforms = [['Instagram', 'platform_instagram']];
     const paidPlatforms = [
@@ -162,17 +174,19 @@ Reply PAID to upgrade.`);
 
     if (!isPaid(id)) {
 
-     prompt = `
+    prompt = `
 Write a realistic emotional story set in an Indian middle class family.
 
 Tone: mostly silent pain.
-Simple daily life situation.
-One small unnoticed sacrifice.
-No motivational lesson.
+Use very simple spoken home-style language.
+Avoid poetic expressions.
+Avoid heavy Hindi words.
+Avoid literary English.
+
 No marketing.
 No growth advice.
 No dramatic accident.
-No death shock twist.
+No death shock.
 No camera instructions.
 No formatting symbols.
 No emojis.
@@ -181,36 +195,39 @@ Language: ${language}
 
 Length:
 25-35 seconds reel.
-90-130 words.
+90-120 words only.
+Only ONE scene.
+No multiple timelines.
 
 Output format:
 
 HOOK:
-(one simple emotional line)
+(one simple line)
 
 REEL SCRIPT:
 (short grounded story)
 
 ENDING:
-(one subtle emotional realization line)
+(one subtle emotional realization)
 `;
 
 
     } else {
 
-     prompt = `
+    prompt = `
 Write a realistic emotional story set in an Indian middle class family.
 
 Tone: mostly silent pain.
-Simple daily life moment.
-One unnoticed sacrifice.
-No motivational speech.
+Use very simple spoken home-style language.
+Avoid poetic expressions.
+Avoid heavy words.
+Avoid literary tone.
+
 No marketing.
 No social media advice.
 No dramatic accident.
 No sudden shocking death.
 No formatting symbols.
-No bold text.
 No emojis.
 
 Language: ${language}
@@ -219,12 +236,12 @@ Create full creator toolkit:
 
 HOOK OPTION 1:
 HOOK OPTION 2:
-REEL SCRIPT:
+REEL SCRIPT (25-35 sec, single scene):
 ALTERNATE ENDING 1:
 ALTERNATE ENDING 2:
 CAPTION:
-HASHTAGS:
-LONG VERSION (200-300 words expanding the same story):
+HASHTAGS (5 simple emotional hashtags):
+LONG VERSION (200-250 words expanding same story only):
 `;
     }
 
@@ -278,4 +295,5 @@ bot.onText(/\/approve (\d+)/, (msg, match) => {
 });
 
 console.log('Story Creator Toolkit Bot Running');
+
 
