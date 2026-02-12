@@ -162,40 +162,60 @@ Reply PAID to upgrade.`);
 
     if (!isPaid(id)) {
 
-      prompt = `
-Write a realistic emotional human story.
-30-45 seconds length.
-120-150 words.
-No advice.
+     prompt = `
+Write a realistic emotional story set in an Indian middle class family.
+
+Tone: mostly silent pain.
+Simple daily life situation.
+One small unnoticed sacrifice.
+No motivational lesson.
 No marketing.
-No growth tips.
+No growth advice.
+No dramatic accident.
+No death shock twist.
 No camera instructions.
 No formatting symbols.
-Language: ${language}
-Platform tone: ${platform}
+No emojis.
 
-Output:
+Language: ${language}
+
+Length:
+25-35 seconds reel.
+90-130 words.
+
+Output format:
+
 HOOK:
+(one simple emotional line)
+
 REEL SCRIPT:
+(short grounded story)
+
 ENDING:
+(one subtle emotional realization line)
 `;
+
 
     } else {
 
-      prompt = `
-Write a realistic emotional human story.
+     prompt = `
+Write a realistic emotional story set in an Indian middle class family.
 
+Tone: mostly silent pain.
+Simple daily life moment.
+One unnoticed sacrifice.
+No motivational speech.
 No marketing.
-No growth advice.
-No explanation.
-No camera directions.
+No social media advice.
+No dramatic accident.
+No sudden shocking death.
 No formatting symbols.
-No markdown.
+No bold text.
+No emojis.
 
 Language: ${language}
-Platform tone: ${platform}
 
-Output:
+Create full creator toolkit:
 
 HOOK OPTION 1:
 HOOK OPTION 2:
@@ -204,7 +224,7 @@ ALTERNATE ENDING 1:
 ALTERNATE ENDING 2:
 CAPTION:
 HASHTAGS:
-LONG VERSION (200-300 words):
+LONG VERSION (200-300 words expanding the same story):
 `;
     }
 
@@ -258,3 +278,4 @@ bot.onText(/\/approve (\d+)/, (msg, match) => {
 });
 
 console.log('Story Creator Toolkit Bot Running');
+
